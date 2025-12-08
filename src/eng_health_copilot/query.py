@@ -23,3 +23,20 @@ def get_last_weekly_metrics(owner: str, repo: str) -> Optional[Dict[str, Any]]:
     if df.empty:
         return None
     return df.iloc[0].to_dict()
+
+def get_weekly_metrics_history(owner: str, repo: str) -> pd.DataFrame:
+    conn = get_db()
+    df = pd.read_sql_query(
+        """
+        SELECT week_start, pr_throughput, pr_lead_time_p50, pr_lead_time_p90,
+               open_bugs_count, wip_prs
+        FROM weekly_metrics
+        WHERE repo_owner = ?
+          AND repo_name = ?
+        ORDER BY week_start
+        """,
+        conn,
+        params=(owner, repo),
+    )
+    conn.close()
+    return df

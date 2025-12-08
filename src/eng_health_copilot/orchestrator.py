@@ -1,7 +1,7 @@
 from typing import Optional
 
 from .ingest import run_ingest
-from .metrics import compute_latest_week_metrics
+from .metrics import recompute_weekly_metrics
 from .query import get_last_weekly_metrics
 from .agents import generate_weekly_summary, answer_question_with_metrics
 from .config import get_settings
@@ -15,7 +15,8 @@ def run_full_analysis(owner: str, repo: str, days_back: Optional[int] = None) ->
     run_ingest(owner, repo, lookback)
 
     # 2) Compute weekly metrics for last 7 days
-    metrics = compute_latest_week_metrics(owner, repo)
+    metrics = recompute_weekly_metrics(owner, repo, weeks_back=12)
+
 
     # 3) Generate a human-readable weekly summary
     summary = generate_weekly_summary(metrics)
