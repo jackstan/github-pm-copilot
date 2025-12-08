@@ -1,53 +1,111 @@
-from typing import Dict, Any
+from typing import Dict, Any, List
 
 
-def generate_weekly_summary(metrics: Dict[str, Any]) -> str:
-    owner = metrics["repo_owner"]
-    repo = metrics["repo_name"]
+def _pretty_metric_name(metric_key: str) -> str:
+    mapping = {
+        "pr_throughput": "PR throughput",
+        "pr_lead_time_p50": "Lead time p50",
+        "pr_lead_time_p90": "Lead time p90",
+        "open_bugs_count": "Open bugs",
+        "wip_prs": "WIP PRs",
+    }
+    return mapping.get(metric_key, metric_key)
 
-    throughput = metrics["pr_throughput"]
-    p50 = metrics["pr_lead_time_p50"]
-    p90 = metrics["pr_lead_time_p90"]
-    open_bugs = metrics["open_bugs_count"]
-    wip_prs = metrics["wip_prs"]
 
-    lines = [
-        f"### Weekly Eng Health Summary for `{owner}/{repo}`",
-        "",
-        f"- **PR throughput (last 7 days):** {throughput} merged PR(s)",
-        f"- **Lead time p50 (days):** {p50:.1f} days" if p50 is not None else "- **Lead time p50 (days):** N/A",
-        f"- **Lead time p90 (days):** {p90:.1f} days" if p90 is not None else "- **Lead time p90 (days):** N/A",
-        f"- **Open bugs (label contains 'bug'):** {open_bugs}",
-        f"- **WIP PRs (currently open):** {wip_prs}",
-        "",
-        "#### High-level read:",
-    ]
+def generate_weekly_summary(metrics: Dict[str, Any], anomalies: List[Dict[str, Any]]) -> str:
+    """
+    Core weekly metrics + simple commentary + an optional anomalies section.
+    Anomalies are additive, not the main focus.
+    """
+    owner = metrics.get("repo_owner", "")
+    repo = metrics.get("repo_name", "")
 
-    commentary = []
-    if throughput == 0:
-        commentary.append("• No PRs merged in the last week – shipping is stalled.")
+    throughput = metrics.get("pr_throughput")
+    p50 = metrics.get("pr_lead_time_p50")
+    p90 = metrics.get("pr_lead_time_p90")
+    open_bugs = metrics.get("open_bugs_count")
+    wip_prs = metrics.get("wip_prs")
+
+    # --- Core metrics section ---
+    lines: List[str] = []
+
+    title = f"### Weekly Eng Health Summary for `{owner}/{repo}`" if owner and repo else "### Weekly Eng Health Summary"
+    lines.append(title)
+    lines.append("")
+    lines.append(f"- **PR throughput (last week):** {throughput} merged PR(s)")
+    lines.append(f"- **Lead time p50 (days):** {p50:.1f} days" if p50 is not None else "- **Lead time p50 (days):** N/A")
+    lines.append(f"- **Lead time p90 (days):** {p90:.1f} days" if p90 is not None else "- **Lead time p90 (days):** N/A")
+    lines.append(f"- **Open bugs (label contains 'bug'):** {open_bugs}")
+    lines.append(f"- **WIP PRs (currently open):** {wip_prs}")
+    lines.append("")
+    lines.append("#### High-level read:")
+
+    # --- Rule-based commentary (the stuff you liked) ---
+    commentary: List[str] = []
+
+    # Throughput commentary
+    if throughput is None or throughput == 0:
+        commentary.append("• No PRs merged in the last week – shipping is effectively paused.")
     elif throughput < 3:
-        commentary.append("• Low throughput – a small trickle of changes is landing.")
+        commentary.append("• Low throughput – only a small number of changes landed.")
+    elif throughput < 10:
+        commentary.append("• Moderate throughput – a steady stream of changes is landing.")
     else:
-        commentary.append("• Healthy PR throughput – changes are moving.")
+        commentary.append("• High throughput – the team is shipping a lot of changes.")
 
-    if open_bugs > 20:
-        commentary.append("• Bug backlog is high; consider a bug-fix sprint or triage.")
-    elif open_bugs > 0:
-        commentary.append("• There are some open bugs; regular triage is important.")
+    # Bug backlog commentary
+    if open_bugs is None:
+        pass
+    elif open_bugs == 0:
+        commentary.append("• No open bugs detected (with a 'bug' label).")
+    elif open_bugs <= 10:
+        commentary.append("• Bug backlog is manageable but worth watching.")
     else:
-        commentary.append("• No open bugs detected (at least with 'bug' label).")
+        commentary.append("• Bug backlog is on the high side; consider targeted bug-fix time or triage.")
 
-    if wip_prs > 10:
-        commentary.append("• High WIP PR count – review bottlenecks or too much in progress.")
-    elif wip_prs > 0:
-        commentary.append("• Some WIP PRs – normal, but keep an eye on aging PRs.")
+    # WIP commentary
+    if wip_prs is None:
+        pass
+    elif wip_prs == 0:
+        commentary.append("• No open PRs right now – the queue is clear.")
+    elif wip_prs <= 5:
+        commentary.append("• WIP PR count looks reasonable.")
+    elif wip_prs <= 15:
+        commentary.append("• WIP PRs are elevated; there may be some review or merge friction.")
     else:
-        commentary.append("• No open PRs right now.")
+        commentary.append("• WIP PRs are very high – likely review bottlenecks or too much work in progress.")
+
+    if not commentary:
+        commentary.append("• Metrics are available, but there isn't a strong signal either way this week.")
 
     lines.extend(commentary)
-    return "\n".join(lines)
 
+    # --- Anomalies as an extra section, if any ---
+    if anomalies:
+        lines.append("")
+        lines.append("#### Notable anomalies vs recent history")
+        for a in anomalies:
+            metric_name = _pretty_metric_name(a.get("metric", ""))
+            z = a.get("z_score")
+            direction = "higher than usual" if a.get("type") == "high" else "lower than usual"
+            value = a.get("value")
+            mean = a.get("mean")
+
+            if z is not None and value is not None and mean is not None:
+                lines.append(
+                    f"- **{metric_name}** is {direction} this week "
+                    f"({value:.2f} vs ~{mean:.2f}, z={z:.2f})."
+                )
+            else:
+                # Fallback to whatever message was provided
+                msg = a.get("message", "")
+                if msg:
+                    lines.append(f"- {msg}")
+    else:
+        lines.append("")
+        lines.append("_No unusual patterns vs the last few weeks._")
+
+    return "\n".join(lines)
 
 def answer_question_with_metrics(
     question: str,

@@ -3,6 +3,8 @@ from typing import Optional
 from .ingest import run_ingest
 from .metrics import recompute_weekly_metrics
 from .query import get_last_weekly_metrics
+from .query import get_weekly_metrics_history
+from .anomalies import detect_anomalies
 from .agents import generate_weekly_summary, answer_question_with_metrics
 from .config import get_settings
 
@@ -14,12 +16,16 @@ def run_full_analysis(owner: str, repo: str, days_back: Optional[int] = None) ->
     # 1) Ingest fresh data from GitHub → SQLite
     run_ingest(owner, repo, lookback)
 
-    # 2) Compute weekly metrics for last 7 days
-    metrics = recompute_weekly_metrics(owner, repo, weeks_back=12)
+    # 2) Recompute weekly metrics (12 weeks) and get latest week's metrics
+    latest_metrics = recompute_weekly_metrics(owner, repo, weeks_back=12)
 
+    # 3) Detect anomalies using the full history
+    df = get_weekly_metrics_history(owner, repo)
+    anomalies = detect_anomalies(df)
 
-    # 3) Generate a human-readable weekly summary
-    summary = generate_weekly_summary(metrics)
+    # 4) Generate summary including anomalies
+    summary = generate_weekly_summary(latest_metrics, anomalies)
+
     return summary
 
 
