@@ -1,8 +1,9 @@
 import sys
 from pathlib import Path
+
+import streamlit as st
 import pandas as pd
 import altair as alt
-import streamlit as st
 
 # Make `src` importable
 ROOT_DIR = Path(__file__).parent
@@ -15,20 +16,29 @@ from eng_health_copilot.orchestrator import (
     answer_user_question,
 )
 from eng_health_copilot.query import get_weekly_metrics_history
+
+# ---------------------------------------------------------
+# Page & session state setup
+# ---------------------------------------------------------
+
 st.set_page_config(page_title="GitHub PM Copilot", layout="wide")
 
-# Session state init
 if "has_run_analysis" not in st.session_state:
     st.session_state["has_run_analysis"] = False
-if "last_analyzed_repo" not in st.session_state:
-    st.session_state["last_analyzed_repo"] = None
 if "chat_history" not in st.session_state:
     st.session_state["chat_history"] = []
+if "last_owner" not in st.session_state:
+    st.session_state["last_owner"] = None
+if "last_repo" not in st.session_state:
+    st.session_state["last_repo"] = None
 
-# Sidebar inputs
+# ---------------------------------------------------------
+# Sidebar controls
+# ---------------------------------------------------------
+
 st.sidebar.title("Repo Settings")
-owner = st.sidebar.text_input("Owner", value="pallets")
-repo = st.sidebar.text_input("Repo", value="flask")
+owner_input = st.sidebar.text_input("Owner", value="pallets")
+repo_input = st.sidebar.text_input("Repo", value="flask")
 days_back = st.sidebar.number_input(
     "Days back",
     min_value=7,
@@ -37,34 +47,52 @@ days_back = st.sidebar.number_input(
     step=7,
 )
 
-current_repo = f"{owner}/{repo}"
-
-
 if st.sidebar.button("Run analysis"):
     with st.spinner("Analyzing repo activity..."):
-        summary = run_full_analysis(owner, repo, days_back=days_back)
+        summary = run_full_analysis(owner_input, repo_input, days_back=days_back)
 
+    # Mark that we have fresh data and remember which repo it was for
     st.session_state["has_run_analysis"] = True
-    st.session_state["last_analyzed_repo"] = current_repo
+    st.session_state["last_owner"] = owner_input
+    st.session_state["last_repo"] = repo_input
 
-    # Start a fresh chat each time analysis is run
+    # Start a fresh chat for this run, seeded with the summary
     st.session_state["chat_history"] = [
         {"role": "assistant", "content": summary}
     ]
-    
 
+# ---------------------------------------------------------
+# Main layout
+# ---------------------------------------------------------
 
-st.title("GitHub PM Copilot (Eng Health)")
+st.title("GitHub PM Copilot (Engineering Health)")
+
+if st.session_state["has_run_analysis"] and st.session_state["last_owner"] and st.session_state["last_repo"]:
+    st.caption(
+        f"Showing metrics for last analyzed repo: "
+        f"`{st.session_state['last_owner']}/{st.session_state['last_repo']}`"
+    )
+else:
+    st.caption(
+        f"Configure a repo in the sidebar (currently: `{owner_input}/{repo_input}`) "
+        "and click **Run analysis**."
+    )
+
+# ----------------- Weekly Metrics & Charts -----------------
+
 st.subheader("Weekly Metrics (last few weeks)")
 
-if (st.session_state.get("has_run_analysis") and st.session_state.get("last_analyzed_repo") == current_repo):
-    history_df = get_weekly_metrics_history(owner, repo)
+if st.session_state.get("has_run_analysis") and st.session_state["last_owner"] and st.session_state["last_repo"]:
+    hist_owner = st.session_state["last_owner"]
+    hist_repo = st.session_state["last_repo"]
+
+    history_df = get_weekly_metrics_history(hist_owner, hist_repo)
 
     if not history_df.empty:
         history_df["week_start"] = pd.to_datetime(history_df["week_start"])
         history_df = history_df.sort_values("week_start")
 
-        # Common x-axis zoom/scroll selection for all charts (only x)
+        # Common x-axis zoom/scroll selection for all charts (only x-axis)
         x_zoom = alt.selection_interval(bind="scales", encodings=["x"])
 
         # --- PR throughput chart ---
@@ -86,7 +114,9 @@ if (st.session_state.get("has_run_analysis") and st.session_state.get("last_anal
 
         # --- Lead time chart (p50 & p90) ---
         st.caption("Lead time (days) – p50 and p90")
-        lead_data = history_df[["week_start", "pr_lead_time_p50", "pr_lead_time_p90"]].melt(
+        lead_data = history_df[
+            ["week_start", "pr_lead_time_p50", "pr_lead_time_p90"]
+        ].melt(
             "week_start",
             ["pr_lead_time_p50", "pr_lead_time_p90"],
             var_name="metric",
@@ -116,7 +146,9 @@ if (st.session_state.get("has_run_analysis") and st.session_state.get("last_anal
 
         # --- Open bugs + WIP PRs chart ---
         st.caption("Open bugs and WIP PRs")
-        bugs_wip_data = history_df[["week_start", "open_bugs_count", "wip_prs"]].melt(
+        bugs_wip_data = history_df[
+            ["week_start", "open_bugs_count", "wip_prs"]
+        ].melt(
             "week_start",
             ["open_bugs_count", "wip_prs"],
             var_name="metric",
@@ -143,34 +175,47 @@ if (st.session_state.get("has_run_analysis") and st.session_state.get("last_anal
         )
 
         st.altair_chart(bugs_wip_chart, use_container_width=True)
+
     else:
-        st.info("No weekly metrics found yet. Try running an analysis.")
+        st.info("No weekly metrics found yet for the last analyzed repo. Try running an analysis.")
 else:
     st.info("Run an analysis from the sidebar to see weekly metrics and charts.")
 
+# ----------------- Chat Interface -----------------
 
+st.subheader("Ask about engineering health")
 
-if "chat_history" not in st.session_state:
-    st.session_state["chat_history"] = []
-
-# Render chat so far
+# Render chat history
 for msg in st.session_state["chat_history"]:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
+# Chat input
 prompt = st.chat_input("Ask about repo health, trends, or metrics...")
 if prompt:
+    # Show user message
     st.session_state["chat_history"].append(
         {"role": "user", "content": prompt}
     )
     with st.chat_message("user"):
         st.markdown(prompt)
 
-    with st.chat_message("assistant"):
-        with st.spinner("Thinking..."):
-            answer = answer_user_question(owner, repo, prompt)
-            st.markdown(answer)
-
-    st.session_state["chat_history"].append(
-        {"role": "assistant", "content": answer}
-    )
+    # Generate assistant reply based on last analyzed repo
+    if st.session_state["has_run_analysis"] and st.session_state["last_owner"] and st.session_state["last_repo"]:
+        qa_owner = st.session_state["last_owner"]
+        qa_repo = st.session_state["last_repo"]
+        with st.chat_message("assistant"):
+            with st.spinner("Thinking..."):
+                answer = answer_user_question(qa_owner, qa_repo, prompt)
+                st.markdown(answer)
+        st.session_state["chat_history"].append(
+            {"role": "assistant", "content": answer}
+        )
+    else:
+        # No analysis yet for any repo
+        fallback = "I don't have any metrics yet. Run an analysis from the sidebar first."
+        with st.chat_message("assistant"):
+            st.markdown(fallback)
+        st.session_state["chat_history"].append(
+            {"role": "assistant", "content": fallback}
+        )

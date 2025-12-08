@@ -49,6 +49,15 @@ CREATE TABLE IF NOT EXISTS weekly_metrics (
     pr_lead_time_p90 REAL,
     open_bugs_count INTEGER,
     wip_prs INTEGER,
+    aging_prs_7d_plus INTEGER,
+    open_issues_count INTEGER,
+    new_issues_count INTEGER,
+    closed_issues_count INTEGER,
+    new_bugs_created INTEGER,
+    bugs_closed INTEGER,
+    net_bug_delta INTEGER,
+    commits_per_week INTEGER,
+    active_contributors_per_week INTEGER,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 """
@@ -56,6 +65,6 @@ CREATE TABLE IF NOT EXISTS weekly_metrics (
 
 def get_db() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=5)
     conn.executescript(SCHEMA)
     return conn

@@ -17,7 +17,7 @@ def recompute_weekly_metrics(owner: str, repo: str, weeks_back: int = 12) -> Dic
     now = datetime.utcnow()
     start = now - timedelta(weeks=weeks_back)
 
-    # Load raw PRs and issues for this repo
+    # --- Load raw PRs, issues, and commits for this repo ---
     pr_df = pd.read_sql_query(
         """
         SELECT created_at, merged_at, closed_at, state
@@ -42,6 +42,18 @@ def recompute_weekly_metrics(owner: str, repo: str, weeks_back: int = 12) -> Dic
         params=(owner, repo, start.isoformat()),
     )
 
+    commits_df = pd.read_sql_query(
+        """
+        SELECT author_date, author_login
+        FROM commits
+        WHERE repo_owner = ?
+          AND repo_name = ?
+          AND author_date >= ?
+        """,
+        conn,
+        params=(owner, repo, start.isoformat()),
+    )
+
     # Normalize datetimes to tz-naive (UTC) so we can safely subtract
     if not pr_df.empty:
         pr_df["created_at"] = pd.to_datetime(pr_df["created_at"], utc=True).dt.tz_convert(None)
@@ -51,6 +63,9 @@ def recompute_weekly_metrics(owner: str, repo: str, weeks_back: int = 12) -> Dic
     if not issues_df.empty:
         issues_df["created_at"] = pd.to_datetime(issues_df["created_at"], utc=True).dt.tz_convert(None)
         issues_df["closed_at"] = pd.to_datetime(issues_df["closed_at"], utc=True).dt.tz_convert(None)
+
+    if not commits_df.empty:
+        commits_df["author_date"] = pd.to_datetime(commits_df["author_date"], utc=True).dt.tz_convert(None)
 
     # Pre-filter bug issues
     if not issues_df.empty:
@@ -95,19 +110,34 @@ def recompute_weekly_metrics(owner: str, repo: str, weeks_back: int = 12) -> Dic
                 p50 = None
                 p90 = None
 
-            # WIP PRs at week_end: created before end and still open
+            # Correct WIP: PRs created before week_end and not yet closed by week_end
             wip_prs = pr_df[
                 (pr_df["created_at"] <= week_end)
-                & (pr_df["state"] == "open")
+                & (
+                    pr_df["closed_at"].isna()
+                    | (pr_df["closed_at"] > week_end)
+                )
+            ].shape[0]
+
+            # Aging PRs: open > 7 days at week_end
+            seven_days_ago = week_end - timedelta(days=7)
+            aging_prs = pr_df[
+                (pr_df["created_at"] <= seven_days_ago)
+                & (
+                    pr_df["closed_at"].isna()
+                    | (pr_df["closed_at"] > week_end)
+                )
             ].shape[0]
         else:
             throughput = 0
             p50 = None
             p90 = None
             wip_prs = 0
+            aging_prs = 0
 
-        # --- Bug backlog at week_end ---
+        # --- Bug backlog & bug flow ---
         if not bug_issues.empty:
+            # Bugs open at week_end
             open_bugs = bug_issues[
                 (bug_issues["created_at"] <= week_end)
                 & (
@@ -115,8 +145,68 @@ def recompute_weekly_metrics(owner: str, repo: str, weeks_back: int = 12) -> Dic
                     | (bug_issues["closed_at"] > week_end)
                 )
             ].shape[0]
+
+            # Bugs created during this week
+            new_bugs = bug_issues[
+                (bug_issues["created_at"] >= week_start)
+                & (bug_issues["created_at"] < week_end)
+            ].shape[0]
+
+            # Bugs closed during this week
+            closed_bugs = bug_issues[
+                (bug_issues["closed_at"].notna())
+                & (bug_issues["closed_at"] >= week_start)
+                & (bug_issues["closed_at"] < week_end)
+            ].shape[0]
         else:
             open_bugs = 0
+            new_bugs = 0
+            closed_bugs = 0
+
+        net_bug_delta = new_bugs - closed_bugs
+
+        # --- Issue backlog & flow (all issues, not just bugs) ---
+        if not issues_df.empty:
+            open_issues = issues_df[
+                (issues_df["created_at"] <= week_end)
+                & (
+                    issues_df["closed_at"].isna()
+                    | (issues_df["closed_at"] > week_end)
+                )
+            ].shape[0]
+
+            new_issues = issues_df[
+                (issues_df["created_at"] >= week_start)
+                & (issues_df["created_at"] < week_end)
+            ].shape[0]
+
+            closed_issues = issues_df[
+                (issues_df["closed_at"].notna())
+                & (issues_df["closed_at"] >= week_start)
+                & (issues_df["closed_at"] < week_end)
+            ].shape[0]
+        else:
+            open_issues = 0
+            new_issues = 0
+            closed_issues = 0
+
+        # --- Commits & contributors ---
+        if not commits_df.empty:
+            commits_in_week = commits_df[
+                (commits_df["author_date"] >= week_start)
+                & (commits_df["author_date"] < week_end)
+            ].copy()
+
+            commits_per_week = len(commits_in_week)
+            active_contributors = (
+                commits_in_week["author_login"].nunique()
+                if not commits_in_week.empty
+                else 0
+            )
+        else:
+            commits_per_week = 0
+            active_contributors = 0
+
         row = {
             "repo_owner": owner,
             "repo_name": repo,
@@ -127,6 +217,15 @@ def recompute_weekly_metrics(owner: str, repo: str, weeks_back: int = 12) -> Dic
             "pr_lead_time_p90": float(p90) if p90 is not None else None,
             "open_bugs_count": int(open_bugs),
             "wip_prs": int(wip_prs),
+            "aging_prs_7d_plus": int(aging_prs),
+            "open_issues_count": int(open_issues),
+            "new_issues_count": int(new_issues),
+            "closed_issues_count": int(closed_issues),
+            "new_bugs_created": int(new_bugs),
+            "bugs_closed": int(closed_bugs),
+            "net_bug_delta": int(net_bug_delta),
+            "commits_per_week": int(commits_per_week),
+            "active_contributors_per_week": int(active_contributors),
         }
         weekly_rows.append(row)
 
@@ -135,9 +234,12 @@ def recompute_weekly_metrics(owner: str, repo: str, weeks_back: int = 12) -> Dic
             INSERT INTO weekly_metrics (
                 repo_owner, repo_name, week_start, week_end,
                 pr_throughput, pr_lead_time_p50, pr_lead_time_p90,
-                open_bugs_count, wip_prs
+                open_bugs_count, wip_prs, aging_prs_7d_plus,
+                open_issues_count, new_issues_count, closed_issues_count,
+                new_bugs_created, bugs_closed, net_bug_delta,
+                commits_per_week, active_contributors_per_week
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 row["repo_owner"],
@@ -149,6 +251,15 @@ def recompute_weekly_metrics(owner: str, repo: str, weeks_back: int = 12) -> Dic
                 row["pr_lead_time_p90"],
                 row["open_bugs_count"],
                 row["wip_prs"],
+                row["aging_prs_7d_plus"],
+                row["open_issues_count"],
+                row["new_issues_count"],
+                row["closed_issues_count"],
+                row["new_bugs_created"],
+                row["bugs_closed"],
+                row["net_bug_delta"],
+                row["commits_per_week"],
+                row["active_contributors_per_week"],
             ),
         )
 
@@ -171,5 +282,14 @@ def recompute_weekly_metrics(owner: str, repo: str, weeks_back: int = 12) -> Dic
         "pr_lead_time_p90": None,
         "open_bugs_count": 0,
         "wip_prs": 0,
+        "aging_prs_7d_plus": 0,
+        "open_issues_count": 0,
+        "new_issues_count": 0,
+        "closed_issues_count": 0,
+        "new_bugs_created": 0,
+        "bugs_closed": 0,
+        "net_bug_delta": 0,
+        "commits_per_week": 0,
+        "active_contributors_per_week": 0,
     }
     return latest
