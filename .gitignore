@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+*.db
+
+# Virtual env
+.env
+.venv
+venv/
+env/
+
+# Data
+/data/*
+!/data/.gitkeep
+
+# VS Code
+.vscode/
+.history/
+
+# macOS
+.DS_Store
+
+# Streamlit
+.streamlit/
