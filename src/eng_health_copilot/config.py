@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 from pathlib import Path
 import os
+from typing import Optional
 
 from dotenv import load_dotenv
 
@@ -13,13 +14,24 @@ if env_path.exists():
 
 @dataclass
 class Settings:
-    github_token: str  # can be empty string or None at runtime
+    # GitHub settings
+    github_token: str
     default_days_back: int
+
+    # OpenAI settings
+    openai_api_key: Optional[str]
+    openai_model: str
 
 
 def get_settings() -> Settings:
-    token = os.getenv("GITHUB_TOKEN")
+    token = os.getenv("GITHUB_TOKEN", "")
+
     return Settings(
-        github_token=token if token is not None else "",
+        # ---- GitHub ----
+        github_token=token,
         default_days_back=int(os.getenv("DAYS_BACK", "90")),
+
+        # ---- OpenAI ----
+        openai_api_key=os.getenv("OPENAI_API_KEY"),
+        openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
     )
