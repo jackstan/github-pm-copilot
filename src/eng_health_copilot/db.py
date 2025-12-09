@@ -26,7 +26,12 @@ CREATE TABLE IF NOT EXISTS pull_requests (
     created_at TEXT,
     merged_at TEXT,
     closed_at TEXT,
-    user_login TEXT
+    user_login TEXT,
+    labels TEXT,
+    additions INTEGER,
+    deletions INTEGER,
+    changed_files INTEGER,
+    head_sha TEXT
 );
 
 CREATE TABLE IF NOT EXISTS commits (
@@ -38,6 +43,40 @@ CREATE TABLE IF NOT EXISTS commits (
     message TEXT
 );
 
+-- New: PR reviews
+CREATE TABLE IF NOT EXISTS pr_reviews (
+    id INTEGER,
+    repo_owner TEXT,
+    repo_name TEXT,
+    pr_number INTEGER,
+    user_login TEXT,
+    state TEXT,
+    submitted_at TEXT
+);
+
+-- New: CI statuses per PR head commit
+CREATE TABLE IF NOT EXISTS ci_statuses (
+    sha TEXT,
+    repo_owner TEXT,
+    repo_name TEXT,
+    pr_number INTEGER,
+    state TEXT,
+    last_updated TEXT
+);
+
+-- New: Releases / tags
+CREATE TABLE IF NOT EXISTS releases (
+    id INTEGER,
+    repo_owner TEXT,
+    repo_name TEXT,
+    tag_name TEXT,
+    name TEXT,
+    created_at TEXT,
+    published_at TEXT
+);
+
+-- Weekly metrics already defined earlier in your project;
+-- we keep the richer version you've been using (no change here).
 CREATE TABLE IF NOT EXISTS weekly_metrics (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     repo_owner TEXT,
