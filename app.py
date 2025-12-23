@@ -37,8 +37,8 @@ if "last_repo" not in st.session_state:
 # ---------------------------------------------------------
 
 st.sidebar.title("Repo Settings")
-owner_input = st.sidebar.text_input("Owner", value="pallets")
-repo_input = st.sidebar.text_input("Repo", value="flask")
+owner_input = st.sidebar.text_input("Owner", value="rustfs")
+repo_input = st.sidebar.text_input("Repo", value="rustfs")
 days_back = st.sidebar.number_input(
     "Days back",
     min_value=7,
