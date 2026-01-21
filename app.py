@@ -1,9 +1,9 @@
 import sys
 from pathlib import Path
+from datetime import datetime, timezone
 
-import streamlit as st
 import pandas as pd
-import altair as alt
+import streamlit as st
 
 # Make `src` importable
 ROOT_DIR = Path(__file__).parent
@@ -11,17 +11,21 @@ SRC_DIR = ROOT_DIR / "src"
 if str(SRC_DIR) not in sys.path:
     sys.path.append(str(SRC_DIR))
 
-from eng_health_copilot.orchestrator import (
-    run_full_analysis,
-    answer_user_question,
-)
+from eng_health_copilot.orchestrator import run_full_analysis, answer_user_question
 from eng_health_copilot.query import get_weekly_metrics_history
+from eng_health_copilot import ui
 
 # ---------------------------------------------------------
-# Page & session state setup
+# Page config
 # ---------------------------------------------------------
-
 st.set_page_config(page_title="GitHub PM Copilot", layout="wide")
+
+# ---------------------------------------------------------
+# Session state init
+# ---------------------------------------------------------
+DEFAULT_OWNER = "rustfs"
+DEFAULT_REPO = "rustfs"
+DEFAULT_DAYS = 90
 
 if "has_run_analysis" not in st.session_state:
     st.session_state["has_run_analysis"] = False
@@ -31,191 +35,217 @@ if "last_owner" not in st.session_state:
     st.session_state["last_owner"] = None
 if "last_repo" not in st.session_state:
     st.session_state["last_repo"] = None
+if "last_days_back" not in st.session_state:
+    st.session_state["last_days_back"] = DEFAULT_DAYS
+if "last_run_at" not in st.session_state:
+    st.session_state["last_run_at"] = None
+
+if "weekly_summary" not in st.session_state:
+    st.session_state["weekly_summary"] = ""
+if "weekly_history_df" not in st.session_state:
+    st.session_state["weekly_history_df"] = pd.DataFrame()
+
+# UI state
+if "nav_view" not in st.session_state:
+    st.session_state["nav_view"] = "Overview"
+if "is_running" not in st.session_state:
+    st.session_state["is_running"] = False
+if "run_requested" not in st.session_state:
+    st.session_state["run_requested"] = False
 
 # ---------------------------------------------------------
-# Sidebar controls
+# CSS
 # ---------------------------------------------------------
+ui.inject_css()
 
+# ---------------------------------------------------------
+# Sidebar
+# ---------------------------------------------------------
 st.sidebar.title("Repo Settings")
-owner_input = st.sidebar.text_input("Owner", value="rustfs")
-repo_input = st.sidebar.text_input("Repo", value="rustfs")
+
+sidebar_disabled = st.session_state["is_running"] or st.session_state["run_requested"]
+
+owner_input = st.sidebar.text_input(
+    "Owner",
+    value=st.session_state["last_owner"] or DEFAULT_OWNER,
+    disabled=sidebar_disabled,
+)
+repo_input = st.sidebar.text_input(
+    "Repo",
+    value=st.session_state["last_repo"] or DEFAULT_REPO,
+    disabled=sidebar_disabled,
+)
 days_back = st.sidebar.number_input(
     "Days back",
     min_value=7,
     max_value=365,
-    value=90,
+    value=int(st.session_state["last_days_back"] or DEFAULT_DAYS),
     step=7,
+    disabled=sidebar_disabled,
 )
 
-if st.sidebar.button("Run analysis"):
-    with st.spinner("Analyzing repo activity..."):
-        summary = run_full_analysis(owner_input, repo_input, days_back=days_back)
+st.sidebar.caption("Tip: Click **Run analysis** to generate the AI report + charts. Initial load may be slow for large repos.")
 
-    # Mark that we have fresh data and remember which repo it was for
-    st.session_state["has_run_analysis"] = True
-    st.session_state["last_owner"] = owner_input
-    st.session_state["last_repo"] = repo_input
+run_clicked = st.sidebar.button(
+    "Run analysis",
+    type="primary",
+    disabled=sidebar_disabled,
+)
 
-    # Start a fresh chat for this run, seeded with the summary
-    st.session_state["chat_history"] = [
-        {"role": "assistant", "content": summary}
-    ]
+# If clicked: set flags BEFORE nav widget exists (safe)
+if run_clicked and not st.session_state["is_running"]:
+    st.session_state["run_requested"] = True
+    st.session_state["nav_view"] = "Overview"
+    st.rerun()
 
 # ---------------------------------------------------------
-# Main layout
+# Header
 # ---------------------------------------------------------
+ui.render_header(
+    owner_input=owner_input,
+    repo_input=repo_input,
+    last_owner=st.session_state["last_owner"],
+    last_repo=st.session_state["last_repo"],
+    last_run_at=st.session_state["last_run_at"],
+    last_days_back=st.session_state["last_days_back"],
+)
 
-st.title("GitHub PM Copilot (Engineering Health)")
-
-if st.session_state["has_run_analysis"] and st.session_state["last_owner"] and st.session_state["last_repo"]:
-    st.caption(
-        f"Showing metrics for last analyzed repo: "
-        f"`{st.session_state['last_owner']}/{st.session_state['last_repo']}`"
+# ---------------------------------------------------------
+# NAV
+# Key trick:
+# - While running: do NOT instantiate the radio widget at all.
+#   (Otherwise any later attempt to change nav_view is illegal.)
+# ---------------------------------------------------------
+if st.session_state["is_running"] or st.session_state["run_requested"]:
+    # Render a "locked" nav that looks like tabs but isn't interactive.
+    # (Simple markdown; styling already comes from your global CSS background.)
+    st.markdown(
+        f"""
+<div style="display:flex; gap:12px; width:100%; margin-top:6px;">
+  <div style="flex:1; padding:12px 14px; border-radius:16px;
+              border:1px solid rgba(14,165,164,0.35);
+              background:rgba(14,165,164,0.12);
+              text-align:center; font-weight:600; color:{ui.ACCENT};">
+    📌 Overview
+  </div>
+  <div style="flex:1; padding:12px 14px; border-radius:16px;
+              border:1px solid rgba(15,23,42,0.10);
+              background:rgba(255,255,255,0.7);
+              text-align:center; font-weight:600; color:rgba(71,85,105,0.8);">
+    📈 Trends
+  </div>
+  <div style="flex:1; padding:12px 14px; border-radius:16px;
+              border:1px solid rgba(15,23,42,0.10);
+              background:rgba(255,255,255,0.7);
+              text-align:center; font-weight:600; color:rgba(71,85,105,0.8);">
+    💬 Ask
+  </div>
+</div>
+""",
+        unsafe_allow_html=True,
     )
+    view = "Overview"
 else:
-    st.caption(
-        f"Configure a repo in the sidebar (currently: `{owner_input}/{repo_input}`) "
-        "and click **Run analysis**."
+    ui.render_nav(
+        active_view=st.session_state["nav_view"],
+        disabled=False,
     )
+    view = st.session_state["nav_view"]
 
-# ----------------- Weekly Metrics & Charts -----------------
+# ---------------------------------------------------------
+# Analysis runner (NO nav_view writes inside)
+# ---------------------------------------------------------
+def _perform_analysis() -> None:
+    st.session_state["is_running"] = True
+    st.session_state["run_requested"] = False
 
-st.subheader("Weekly Metrics (last few weeks)")
+    try:
+        with st.status("Running analysis…", expanded=True) as status:
+            progress = st.progress(0)
 
-if st.session_state.get("has_run_analysis") and st.session_state["last_owner"] and st.session_state["last_repo"]:
-    hist_owner = st.session_state["last_owner"]
-    hist_repo = st.session_state["last_repo"]
+            def _on_status(label: str, pct: float) -> None:
+                status.update(label=label, state="running")
+                progress.progress(max(0, min(100, int(pct * 100))))
 
-    history_df = get_weekly_metrics_history(hist_owner, hist_repo)
-
-    if not history_df.empty:
-        history_df["week_start"] = pd.to_datetime(history_df["week_start"])
-        history_df = history_df.sort_values("week_start")
-
-        # Common x-axis zoom/scroll selection for all charts (only x-axis)
-        x_zoom = alt.selection_interval(bind="scales", encodings=["x"])
-
-        # --- PR throughput chart ---
-        st.caption("PR throughput (merged PRs per week)")
-        throughput_data = history_df[["week_start", "pr_throughput"]]
-
-        throughput_chart = (
-            alt.Chart(throughput_data)
-            .mark_line(point=True)
-            .encode(
-                x=alt.X("week_start:T", title="Week"),
-                y=alt.Y("pr_throughput:Q", title="Merged PRs"),
+            summary = run_full_analysis(
+                owner_input,
+                repo_input,
+                days_back=int(days_back),
+                on_status=_on_status,
             )
-            .properties(height=200)
-            .add_params(x_zoom)
-        )
 
-        st.altair_chart(throughput_chart, use_container_width=True)
+            status.update(label="Loading weekly history…", state="running")
+            progress.progress(95)
+            history_df = get_weekly_metrics_history(owner_input, repo_input)
 
-        # --- Lead time chart (p50 & p90) ---
-        st.caption("Lead time (days) – p50 and p90")
-        lead_data = history_df[
-            ["week_start", "pr_lead_time_p50", "pr_lead_time_p90"]
-        ].melt(
-            "week_start",
-            ["pr_lead_time_p50", "pr_lead_time_p90"],
-            var_name="metric",
-            value_name="value",
-        )
+            st.session_state["has_run_analysis"] = True
+            st.session_state["last_owner"] = owner_input
+            st.session_state["last_repo"] = repo_input
+            st.session_state["last_days_back"] = int(days_back)
+            st.session_state["last_run_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
 
-        lead_chart = (
-            alt.Chart(lead_data)
-            .mark_line(point=True)
-            .encode(
-                x=alt.X("week_start:T", title="Week"),
-                y=alt.Y("value:Q", title="Lead time (days)"),
-                color=alt.Color(
-                    "metric:N",
-                    title="Metric",
-                    scale=alt.Scale(
-                        domain=["pr_lead_time_p50", "pr_lead_time_p90"],
-                        range=["#1f77b4", "#ff7f0e"],
-                    ),
-                ),
-            )
-            .properties(height=200)
-            .add_params(x_zoom)
-        )
+            st.session_state["weekly_summary"] = summary
+            st.session_state["weekly_history_df"] = history_df
 
-        st.altair_chart(lead_chart, use_container_width=True)
+            st.session_state["chat_history"] = []
 
-        # --- Open bugs + WIP PRs chart ---
-        st.caption("Open bugs and WIP PRs")
-        bugs_wip_data = history_df[
-            ["week_start", "open_bugs_count", "wip_prs"]
-        ].melt(
-            "week_start",
-            ["open_bugs_count", "wip_prs"],
-            var_name="metric",
-            value_name="value",
-        )
+            progress.progress(100)
+            status.update(label="Done.", state="complete")
 
-        bugs_wip_chart = (
-            alt.Chart(bugs_wip_data)
-            .mark_line(point=True)
-            .encode(
-                x=alt.X("week_start:T", title="Week"),
-                y=alt.Y("value:Q", title="Count"),
-                color=alt.Color(
-                    "metric:N",
-                    title="Metric",
-                    scale=alt.Scale(
-                        domain=["open_bugs_count", "wip_prs"],
-                        range=["#d62728", "#2ca02c"],
-                    ),
-                ),
-            )
-            .properties(height=200)
-            .add_params(x_zoom)
-        )
+    except Exception as e:
+        st.error(f"Analysis failed: {e}")
 
-        st.altair_chart(bugs_wip_chart, use_container_width=True)
+    finally:
+        st.session_state["is_running"] = False
 
-    else:
-        st.info("No weekly metrics found yet for the last analyzed repo. Try running an analysis.")
+    st.rerun()
+
+# Kick off analysis
+if st.session_state["run_requested"] and not st.session_state["is_running"]:
+    _perform_analysis()
+
+# ---------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------
+has_run = st.session_state["has_run_analysis"]
+last_owner = st.session_state["last_owner"]
+last_repo = st.session_state["last_repo"]
+summary = st.session_state["weekly_summary"]
+history_df = st.session_state["weekly_history_df"]
+
+def go_to_ask() -> None:
+    # Safe because it triggers a new rerun and is set BEFORE next nav widget instantiation
+    if st.session_state["is_running"]:
+        return
+    st.session_state["nav_view"] = "Ask"
+    st.rerun()
+
+def answer_fn(question: str) -> str:
+    if not (last_owner and last_repo):
+        return "I don't have metrics yet. Run an analysis first."
+    return answer_user_question(last_owner, last_repo, question)
+
+# ---------------------------------------------------------
+# Routing
+# ---------------------------------------------------------
+if view == "Overview":
+    ui.render_overview(
+        has_run=has_run,
+        owner=last_owner,
+        repo=last_repo,
+        history_df=history_df,
+        summary=summary,
+        on_go_to_ask=go_to_ask,
+    )
+elif view == "Trends":
+    ui.render_trends(history_df=history_df)
 else:
-    st.info("Run an analysis from the sidebar to see weekly metrics and charts.")
-
-# ----------------- Chat Interface -----------------
-
-st.subheader("Ask about engineering health")
-
-# Render chat history
-for msg in st.session_state["chat_history"]:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-# Chat input
-prompt = st.chat_input("Ask about repo health, trends, or metrics...")
-if prompt:
-    # Show user message
-    st.session_state["chat_history"].append(
-        {"role": "user", "content": prompt}
+    ui.render_ask(
+        has_run=has_run,
+        owner=last_owner,
+        repo=last_repo,
+        summary=summary,
+        chat_history=st.session_state["chat_history"],
+        answer_fn=answer_fn,
+        disabled=st.session_state["is_running"],
     )
-    with st.chat_message("user"):
-        st.markdown(prompt)
-
-    # Generate assistant reply based on last analyzed repo
-    if st.session_state["has_run_analysis"] and st.session_state["last_owner"] and st.session_state["last_repo"]:
-        qa_owner = st.session_state["last_owner"]
-        qa_repo = st.session_state["last_repo"]
-        with st.chat_message("assistant"):
-            with st.spinner("Thinking..."):
-                answer = answer_user_question(qa_owner, qa_repo, prompt)
-                st.markdown(answer)
-        st.session_state["chat_history"].append(
-            {"role": "assistant", "content": answer}
-        )
-    else:
-        # No analysis yet for any repo
-        fallback = "I don't have any metrics yet. Run an analysis from the sidebar first."
-        with st.chat_message("assistant"):
-            st.markdown(fallback)
-        st.session_state["chat_history"].append(
-            {"role": "assistant", "content": fallback}
-        )
