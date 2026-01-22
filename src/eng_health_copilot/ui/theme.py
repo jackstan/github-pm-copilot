@@ -31,6 +31,10 @@ def inject_css() -> None:
   --border: rgba(15,23,42,0.10);
   --border-light: rgba(15,23,42,0.06);
   --shadow: 0 14px 34px rgba(15,23,42,0.10);
+  --primary-color: {ACCENT};
+  --background-color: #F6F4F1;
+  --secondary-background-color: #FFFFFF;
+  --text-color: #0F172A;
 }}
 
 .stApp, html, body {{
@@ -294,7 +298,8 @@ div[data-testid="stChatInput"] {{
 }}
 
 div[data-testid="stChatInput"] > div,
-div[data-testid="stChatInput"] [data-baseweb="input"] {{
+div[data-testid="stChatInput"] [data-baseweb="input"],
+div[data-testid="stChatInput"] [data-baseweb="base-input"] {{
   background: #ffffff !important;
 }}
 
