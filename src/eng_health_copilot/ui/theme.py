@@ -33,6 +33,10 @@ def inject_css() -> None:
   --shadow: 0 14px 34px rgba(15,23,42,0.10);
 }}
 
+.stApp, html, body {{
+  color-scheme: light;
+}}
+
 .stApp {{
   background:
     radial-gradient(900px 520px at 8% 6%, rgba(14,165,164,0.15), transparent 60%),
@@ -285,6 +289,12 @@ div[data-testid="stChatInput"] {{
   box-shadow: 0 12px 26px rgba(14,165,164,0.12);
 }}
 
+div[data-testid="stChatInput"] input,
+div[data-testid="stChatInput"] textarea {{
+  background: var(--surface-strong) !important;
+  color: var(--ink) !important;
+}}
+
 div[data-testid="stChatInput"] div[data-baseweb="input"] > div {{
   border: 0 !important;
   box-shadow: none !important;
@@ -487,6 +497,34 @@ div[data-testid="stVegaLiteChart"] {{
   overflow: hidden !important;
   margin-top: 8px !important;
   box-shadow: 0 12px 26px rgba(15,23,42,0.06);
+}}
+
+div[data-testid="stVegaLiteChart"] .vega-embed,
+div[data-testid="stVegaLiteChart"] .vega-embed > div {{
+  background: var(--surface-strong) !important;
+}}
+
+div[data-testid="stVegaLiteChart"] .vega-embed .background {{
+  fill: #ffffff !important;
+}}
+
+div[data-testid="stVegaLiteChart"] .vega-embed text {{
+  fill: var(--ink) !important;
+}}
+
+div[data-testid="stVegaLiteChart"] .vega-embed .axis line,
+div[data-testid="stVegaLiteChart"] .vega-embed .axis path,
+div[data-testid="stVegaLiteChart"] .vega-embed .grid line {{
+  stroke: rgba(15,23,42,0.16) !important;
+}}
+
+/* Progress bar */
+div[data-testid="stProgress"] > div > div {{
+  background: rgba(15,23,42,0.12) !important;
+}}
+
+div[data-testid="stProgress"] > div > div > div {{
+  background: var(--accent) !important;
 }}
 
 div[data-testid="stVegaLiteChart"] > div,
