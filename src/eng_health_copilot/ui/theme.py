@@ -37,6 +37,10 @@ def inject_css() -> None:
   --text-color: #0F172A;
 }}
 
+:root {{
+  color-scheme: light;
+}}
+
 .stApp, html, body {{
   color-scheme: light;
 }}
@@ -49,7 +53,17 @@ def inject_css() -> None:
   color: var(--ink);
 }}
 
-html, body, .stApp, .stApp > div {{
+html, body, .stApp, .stApp > div,
+div[data-testid="stAppViewContainer"],
+.stAppViewContainer,
+section[data-testid="stMain"],
+section.main {{
+  background-color: #f6f4f1 !important;
+}}
+
+div[data-testid="stBottomBlockContainer"],
+div[data-testid="stBottomBlock"],
+div[data-testid="stChatInputContainer"] {{
   background-color: #f6f4f1 !important;
 }}
 
@@ -300,6 +314,10 @@ div[data-testid="stChatInput"] {{
 div[data-testid="stChatInput"] > div,
 div[data-testid="stChatInput"] [data-baseweb="input"],
 div[data-testid="stChatInput"] [data-baseweb="base-input"] {{
+  background: #ffffff !important;
+}}
+
+div[data-testid="stChatInput"] [data-baseweb="base-input"] > div {{
   background: #ffffff !important;
 }}
 

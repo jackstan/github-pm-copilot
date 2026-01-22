@@ -77,7 +77,7 @@ def render_overview_charts(df: pd.DataFrame) -> None:
                 x=alt.X("week_start:T", axis=X_AXIS),
                 y=alt.Y("pr_throughput:Q", title="Merged PRs"),
             )
-            .properties(height=260, padding={"bottom": 40})
+            .properties(height=260, padding={"bottom": 40}, background="#ffffff")
             )
         )
         st.altair_chart(chart, use_container_width=True)
@@ -104,7 +104,7 @@ def render_overview_charts(df: pd.DataFrame) -> None:
                     scale=alt.Scale(range=[ACCENT, ACCENT_2]),
                 ),
             )
-            .properties(height=260, padding={"bottom": 40})
+            .properties(height=260, padding={"bottom": 40}, background="#ffffff")
             )
         )
         st.altair_chart(chart, use_container_width=True)
@@ -123,7 +123,7 @@ def render_trend_charts(df: pd.DataFrame) -> None:
             x=alt.X("week_start:T", axis=X_AXIS),
             y=alt.Y("pr_throughput:Q", title="Merged PRs"),
         )
-        .properties(height=260, padding={"bottom": 44})
+        .properties(height=260, padding={"bottom": 44}, background="#ffffff")
         .add_params(zoom)
         )
     )
@@ -150,7 +150,7 @@ def render_trend_charts(df: pd.DataFrame) -> None:
                 scale=alt.Scale(range=[ACCENT, ACCENT_2]),
             ),
         )
-        .properties(height=260, padding={"bottom": 44})
+        .properties(height=260, padding={"bottom": 44}, background="#ffffff")
         .add_params(zoom)
         )
     )
@@ -177,7 +177,7 @@ def render_trend_charts(df: pd.DataFrame) -> None:
                 scale=alt.Scale(range=[ACCENT, ACCENT_2]),
             ),
         )
-        .properties(height=260, padding={"bottom": 44})
+        .properties(height=260, padding={"bottom": 44}, background="#ffffff")
         .add_params(zoom)
         )
     )
