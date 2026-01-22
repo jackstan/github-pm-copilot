@@ -45,6 +45,29 @@ def inject_css() -> None:
   font-family: "Space Grotesk", sans-serif;
 }}
 
+.stApp {{
+  color: var(--ink);
+}}
+
+header[data-testid="stHeader"] {{
+  background: transparent;
+}}
+
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span,
+section[data-testid="stSidebar"] div {{
+  color: var(--ink);
+}}
+
+input, textarea, select {{
+  color: var(--ink) !important;
+}}
+
+::placeholder {{
+  color: rgba(71,85,105,0.7) !important;
+}}
+
 .material-icons,
 .material-icons-outlined,
 .material-icons-round,
@@ -230,6 +253,16 @@ div[data-baseweb="textarea"] > div {{
   border: 1px solid var(--border) !important;
   background: var(--surface-strong) !important;
   box-shadow: none !important;
+}}
+
+div[data-baseweb="input"] button,
+div[data-baseweb="input"] svg {{
+  color: var(--ink) !important;
+}}
+
+div[data-baseweb="input"] button {{
+  background: var(--surface-strong) !important;
+  border: 1px solid var(--border-light) !important;
 }}
 
 div[data-testid="stChatInput"] {{
