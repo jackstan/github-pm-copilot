@@ -119,6 +119,13 @@ section[data-testid="stSidebar"] [data-baseweb="input"][aria-disabled="true"] te
   -webkit-text-fill-color: var(--ink) !important;
 }}
 
+section[data-testid="stSidebar"] [aria-disabled="true"] * {{
+  color: var(--ink) !important;
+  -webkit-text-fill-color: var(--ink) !important;
+  opacity: 1 !important;
+  filter: none !important;
+}}
+
 input, textarea, select {{
   color: var(--ink) !important;
 }}
@@ -371,6 +378,16 @@ div[data-testid="stNumberInput"] button {{
 }}
 
 div[data-testid="stNumberInput"] button svg {{
+  fill: var(--ink) !important;
+}}
+
+div[data-testid="stNumberInput"] button[aria-label] {{
+  background: var(--surface-muted) !important;
+  color: var(--ink) !important;
+  background-image: none !important;
+}}
+
+div[data-testid="stNumberInput"] button[aria-label] svg {{
   fill: var(--ink) !important;
 }}
 
@@ -640,13 +657,17 @@ div[data-testid="stVegaLiteChart"] .vega-embed .grid line {{
 
 /* Progress bar */
 div[data-testid="stProgress"] > div > div,
+div[data-baseweb="progress-bar"],
 div[data-baseweb="progress-bar"] > div {{
   background: rgba(15,23,42,0.08) !important;
 }}
 
 div[data-testid="stProgress"] > div > div > div,
 div[data-testid="stProgress"] [role="progressbar"],
-div[data-baseweb="progress-bar"] [role="progressbar"] {{
+div[data-baseweb="progress-bar"] [role="progressbar"],
+div[data-baseweb="progress-bar"] [style*="linear-gradient"],
+div[data-baseweb="progress-bar"] [style*="gradient"] {{
+  background: var(--accent-strong) !important;
   background-color: var(--accent-strong) !important;
   background-image: none !important;
 }}
@@ -656,6 +677,38 @@ div[data-baseweb="progress-bar"] div,
 div[data-testid="stProgress"] *,
 div[data-baseweb="progress-bar"] * {{
   background-image: none !important;
+}}
+
+.progress-track {{
+  width: 100%;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(15,23,42,0.10);
+  overflow: hidden;
+}}
+
+.progress-fill {{
+  height: 100%;
+  background: var(--accent-strong);
+  border-radius: inherit;
+  transition: width 160ms ease;
+}}
+
+progress {{
+  appearance: none;
+  -webkit-appearance: none;
+}}
+
+progress::-webkit-progress-bar {{
+  background: rgba(15,23,42,0.08) !important;
+}}
+
+progress::-webkit-progress-value {{
+  background: var(--accent-strong) !important;
+}}
+
+progress::-moz-progress-bar {{
+  background: var(--accent-strong) !important;
 }}
 
 div[data-testid="stProgress"] span,

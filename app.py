@@ -182,11 +182,22 @@ def _perform_analysis() -> None:
 
     try:
         with st.status("Running analysis…", expanded=True) as status:
-            progress = st.progress(0)
+            progress_slot = st.empty()
+
+            def _render_progress(pct: int) -> None:
+                pct = max(0, min(100, pct))
+                progress_slot.markdown(
+                    f"""
+<div class="progress-track">
+  <div class="progress-fill" style="width: {pct}%"></div>
+</div>
+""",
+                    unsafe_allow_html=True,
+                )
 
             def _on_status(label: str, pct: float) -> None:
                 status.update(label=label, state="running")
-                progress.progress(max(0, min(100, int(pct * 100))))
+                _render_progress(int(pct * 100))
 
             summary = run_full_analysis(
                 owner_input,
@@ -196,7 +207,7 @@ def _perform_analysis() -> None:
             )
 
             status.update(label="Loading weekly history…", state="running")
-            progress.progress(95)
+            _render_progress(95)
             history_df = get_weekly_metrics_history(owner_input, repo_input)
 
             st.session_state["has_run_analysis"] = True
@@ -210,7 +221,7 @@ def _perform_analysis() -> None:
 
             st.session_state["chat_history"] = []
 
-            progress.progress(100)
+            _render_progress(100)
             status.update(label="Done.", state="complete")
 
     except Exception as e:
