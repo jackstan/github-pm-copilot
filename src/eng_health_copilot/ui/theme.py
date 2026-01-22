@@ -45,6 +45,10 @@ def inject_css() -> None:
   color: var(--ink);
 }}
 
+html, body, .stApp, .stApp > div {{
+  background-color: #f6f4f1 !important;
+}}
+
 .stApp, .stApp * {{
   font-family: "Space Grotesk", sans-serif;
 }}
@@ -282,15 +286,16 @@ div[data-baseweb="input"] button {{
 }}
 
 div[data-testid="stChatInput"] {{
-  background: rgba(255,255,255,0.98) !important;
+  background: #ffffff !important;
   border: 2px solid rgba(14,165,164,0.45);
   border-radius: 18px;
   padding: 12px 14px;
   box-shadow: 0 12px 26px rgba(14,165,164,0.12);
 }}
 
-div[data-testid="stChatInput"] > div {{
-  background: transparent !important;
+div[data-testid="stChatInput"] > div,
+div[data-testid="stChatInput"] [data-baseweb="input"] {{
+  background: #ffffff !important;
 }}
 
 div[data-testid="stChatInput"] input,
