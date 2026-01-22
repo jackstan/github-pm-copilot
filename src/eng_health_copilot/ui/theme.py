@@ -126,6 +126,14 @@ section[data-testid="stSidebar"] {{
   backdrop-filter: blur(14px);
 }}
 
+section[data-testid="stSidebar"] [data-baseweb="base-input"],
+section[data-testid="stSidebar"] [data-baseweb="input"],
+section[data-testid="stSidebar"] [data-baseweb="select"],
+section[data-testid="stSidebar"] [data-baseweb="button"] {{
+  background: var(--surface-strong) !important;
+  color: var(--ink) !important;
+}}
+
 .block-container {{
   padding-top: 1.4rem;
   padding-bottom: 2.5rem;
@@ -255,13 +263,17 @@ div[data-baseweb="textarea"] > div {{
   box-shadow: none !important;
 }}
 
+div[data-baseweb="input"] > div:has(button) {{
+  background: var(--surface-strong) !important;
+}}
+
 div[data-baseweb="input"] button,
 div[data-baseweb="input"] svg {{
   color: var(--ink) !important;
 }}
 
 div[data-baseweb="input"] button {{
-  background: var(--surface-strong) !important;
+  background: var(--surface-muted) !important;
   border: 1px solid var(--border-light) !important;
 }}
 
