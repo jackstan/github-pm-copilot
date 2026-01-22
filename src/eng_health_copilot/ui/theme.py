@@ -282,11 +282,15 @@ div[data-baseweb="input"] button {{
 }}
 
 div[data-testid="stChatInput"] {{
-  background: linear-gradient(120deg, rgba(14,165,164,0.12), rgba(255,255,255,0.9));
+  background: rgba(255,255,255,0.98) !important;
   border: 2px solid rgba(14,165,164,0.45);
   border-radius: 18px;
   padding: 12px 14px;
   box-shadow: 0 12px 26px rgba(14,165,164,0.12);
+}}
+
+div[data-testid="stChatInput"] > div {{
+  background: transparent !important;
 }}
 
 div[data-testid="stChatInput"] input,
@@ -520,11 +524,11 @@ div[data-testid="stVegaLiteChart"] .vega-embed .grid line {{
 
 /* Progress bar */
 div[data-testid="stProgress"] > div > div {{
-  background: rgba(15,23,42,0.12) !important;
+  background: rgba(15,23,42,0.08) !important;
 }}
 
 div[data-testid="stProgress"] > div > div > div {{
-  background: var(--accent) !important;
+  background: var(--accent-strong) !important;
 }}
 
 div[data-testid="stVegaLiteChart"] > div,

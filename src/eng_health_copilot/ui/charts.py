@@ -6,6 +6,33 @@ import streamlit as st
 
 from .theme import ACCENT, ACCENT_2
 
+
+def _register_light_theme() -> None:
+    def _theme() -> dict:
+        return {
+            "config": {
+                "background": "#ffffff",
+                "view": {"fill": "#ffffff", "stroke": "transparent"},
+                "axis": {
+                    "labelColor": "#0f172a",
+                    "titleColor": "#0f172a",
+                    "gridColor": "rgba(15,23,42,0.12)",
+                    "domainColor": "rgba(15,23,42,0.16)",
+                    "tickColor": "rgba(15,23,42,0.16)",
+                },
+                "legend": {
+                    "labelColor": "#0f172a",
+                    "titleColor": "#0f172a",
+                },
+            }
+        }
+
+    alt.themes.register("eng_light", _theme)
+    alt.themes.enable("eng_light")
+
+
+_register_light_theme()
+
 LABELS = {
     "pr_lead_time_p50": "Lead time p50",
     "pr_lead_time_p90": "Lead time p90",
