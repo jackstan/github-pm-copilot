@@ -113,6 +113,12 @@ section[data-testid="stSidebar"] [data-baseweb="input"][aria-disabled="true"] {{
   filter: none !important;
 }}
 
+section[data-testid="stSidebar"] [data-baseweb="input"][aria-disabled="true"] input,
+section[data-testid="stSidebar"] [data-baseweb="input"][aria-disabled="true"] textarea {{
+  color: var(--ink) !important;
+  -webkit-text-fill-color: var(--ink) !important;
+}}
+
 input, textarea, select {{
   color: var(--ink) !important;
 }}
@@ -358,6 +364,14 @@ div[data-testid="stNumberInput"] [data-baseweb="button-group"] {{
 
 div[data-testid="stNumberInput"] [data-baseweb="button-group"] > div {{
   background: var(--surface-muted) !important;
+}}
+
+div[data-testid="stNumberInput"] button {{
+  background: var(--surface-muted) !important;
+}}
+
+div[data-testid="stNumberInput"] button svg {{
+  fill: var(--ink) !important;
 }}
 
 div[data-baseweb="input"] input,
@@ -625,21 +639,22 @@ div[data-testid="stVegaLiteChart"] .vega-embed .grid line {{
 }}
 
 /* Progress bar */
-div[data-testid="stProgress"] > div > div {{
+div[data-testid="stProgress"] > div > div,
+div[data-baseweb="progress-bar"] > div {{
   background: rgba(15,23,42,0.08) !important;
 }}
 
-div[data-testid="stProgress"] > div > div > div {{
-  background: var(--accent-strong) !important;
+div[data-testid="stProgress"] > div > div > div,
+div[data-testid="stProgress"] [role="progressbar"],
+div[data-baseweb="progress-bar"] [role="progressbar"] {{
+  background-color: var(--accent-strong) !important;
   background-image: none !important;
 }}
 
-div[data-testid="stProgress"] [role="progressbar"] {{
-  background: var(--accent-strong) !important;
-  background-image: none !important;
-}}
-
-div[data-testid="stProgress"] div {{
+div[data-testid="stProgress"] div,
+div[data-baseweb="progress-bar"] div,
+div[data-testid="stProgress"] *,
+div[data-baseweb="progress-bar"] * {{
   background-image: none !important;
 }}
 
