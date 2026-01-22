@@ -86,6 +86,10 @@ section[data-testid="stSidebar"] div {{
   color: var(--ink);
 }}
 
+section[data-testid="stSidebar"] * {{
+  color: var(--ink) !important;
+}}
+
 input, textarea, select {{
   color: var(--ink) !important;
 }}
@@ -301,6 +305,11 @@ div[data-baseweb="input"] svg {{
 div[data-baseweb="input"] button {{
   background: var(--surface-muted) !important;
   border: 1px solid var(--border-light) !important;
+}}
+
+div[data-baseweb="input"] input,
+div[data-baseweb="input"] textarea {{
+  color: var(--ink) !important;
 }}
 
 div[data-testid="stChatInput"] {{
@@ -557,6 +566,13 @@ div[data-testid="stProgress"] > div > div {{
 
 div[data-testid="stProgress"] > div > div > div {{
   background: var(--accent-strong) !important;
+  background-image: none !important;
+}}
+
+div[data-testid="stProgress"] span,
+div[data-testid="stProgress"] p,
+div[data-testid="stProgress"] [data-testid="stMarkdownContainer"] {{
+  color: var(--ink) !important;
 }}
 
 div[data-testid="stVegaLiteChart"] > div,
@@ -762,10 +778,15 @@ div[data-testid="stSidebarCollapsedControl"] button::before {{
 
 /* Chat */
 div[data-testid="stChatMessage"] {{
-  background: var(--surface-strong);
+  background: var(--surface-strong) !important;
+  color: var(--ink) !important;
   border: 1px solid var(--border-light);
   border-radius: 16px;
   padding: 10px 12px;
+}}
+
+div[data-testid="stChatMessage"] * {{
+  color: var(--ink) !important;
 }}
 
 /* Alerts */
