@@ -1,9 +1,11 @@
+import os
 import sys
 from pathlib import Path
 from datetime import datetime, timezone
 
 import pandas as pd
 import streamlit as st
+import streamlit.components.v1 as components
 
 # Make `src` importable
 ROOT_DIR = Path(__file__).parent
@@ -19,6 +21,25 @@ from eng_health_copilot import ui
 # Page config
 # ---------------------------------------------------------
 st.set_page_config(page_title="GitHub PM Copilot", layout="wide")
+
+# ---------------------------------------------------------
+# Debug theme indicator (dev-only)
+# ---------------------------------------------------------
+if os.getenv("DEBUG_THEME") == "1":
+    st.caption("Theme policy: light")
+    components.html(
+        """
+<div id="theme-indicator" style="font: 13px/1.4 system-ui; color: #0f172a;">
+  prefers-color-scheme: …
+</div>
+<script>
+  const el = document.getElementById("theme-indicator");
+  const isDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  el.textContent = "prefers-color-scheme: " + (isDark ? "dark" : "light");
+</script>
+""",
+        height=24,
+    )
 
 # ---------------------------------------------------------
 # Session state init

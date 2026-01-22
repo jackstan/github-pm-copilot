@@ -90,6 +90,29 @@ section[data-testid="stSidebar"] * {{
   color: var(--ink) !important;
 }}
 
+section[data-testid="stSidebar"] input:disabled,
+section[data-testid="stSidebar"] textarea:disabled,
+section[data-testid="stSidebar"] select:disabled {{
+  color: var(--ink) !important;
+  -webkit-text-fill-color: var(--ink) !important;
+  opacity: 1 !important;
+}}
+
+section[data-testid="stSidebar"] button:disabled {{
+  color: var(--ink) !important;
+  opacity: 0.7 !important;
+}}
+
+section[data-testid="stSidebar"] [aria-disabled="true"],
+section[data-testid="stSidebar"] [data-disabled="true"] {{
+  opacity: 1 !important;
+}}
+
+section[data-testid="stSidebar"] [data-baseweb="input"][aria-disabled="true"] {{
+  opacity: 1 !important;
+  filter: none !important;
+}}
+
 input, textarea, select {{
   color: var(--ink) !important;
 }}
@@ -307,6 +330,41 @@ div[data-baseweb="input"] button {{
   border: 1px solid var(--border-light) !important;
 }}
 
+div[data-baseweb="button-group"] {{
+  background: var(--surface-strong) !important;
+  border: 1px solid var(--border-light) !important;
+}}
+
+div[data-baseweb="button-group"] button {{
+  background: var(--surface-muted) !important;
+  color: var(--ink) !important;
+}}
+
+div[data-testid="stNumberInput"] button,
+div[data-testid="stNumberInput"] svg {{
+  color: var(--ink) !important;
+}}
+
+div[data-testid="stNumberInput"] [data-baseweb="button-group"] button,
+div[data-testid="stNumberInput"] [data-baseweb="button-group"] [role="button"] {{
+  background: var(--surface-muted) !important;
+  color: var(--ink) !important;
+  border: 1px solid var(--border-light) !important;
+}}
+
+div[data-testid="stNumberInput"] [data-baseweb="button-group"] {{
+  background: var(--surface-strong) !important;
+}}
+
+div[data-testid="stNumberInput"] [data-baseweb="button-group"] > div {{
+  background: var(--surface-muted) !important;
+}}
+
+div[data-baseweb="input"] input,
+div[data-baseweb="input"] textarea {{
+  color: var(--ink) !important;
+}}
+
 div[data-baseweb="input"] input,
 div[data-baseweb="input"] textarea {{
   color: var(--ink) !important;
@@ -334,6 +392,7 @@ div[data-testid="stChatInput"] input,
 div[data-testid="stChatInput"] textarea {{
   background: var(--surface-strong) !important;
   color: var(--ink) !important;
+  border: 1px solid var(--border-light) !important;
 }}
 
 div[data-testid="stChatInput"] div[data-baseweb="input"] > div {{
@@ -344,6 +403,12 @@ div[data-testid="stChatInput"] div[data-baseweb="input"] > div {{
 div[data-testid="stChatInput"] div[data-baseweb="input"] > div:focus-within {{
   border-color: transparent !important;
   box-shadow: none !important;
+}}
+
+div[data-testid="stChatInput"] input:focus,
+div[data-testid="stChatInput"] textarea:focus {{
+  outline: 2px solid rgba(14,165,164,0.45) !important;
+  outline-offset: 2px;
 }}
 
 .ask-input-header {{
@@ -569,6 +634,21 @@ div[data-testid="stProgress"] > div > div > div {{
   background-image: none !important;
 }}
 
+div[data-testid="stProgress"] [role="progressbar"] {{
+  background: var(--accent-strong) !important;
+  background-image: none !important;
+}}
+
+div[data-testid="stProgress"] div {{
+  background-image: none !important;
+}}
+
+div[data-testid="stProgress"] span,
+div[data-testid="stProgress"] p,
+div[data-testid="stProgress"] [data-testid="stMarkdownContainer"] {{
+  color: var(--ink) !important;
+}}
+
 div[data-testid="stProgress"] span,
 div[data-testid="stProgress"] p,
 div[data-testid="stProgress"] [data-testid="stMarkdownContainer"] {{
@@ -783,6 +863,27 @@ div[data-testid="stChatMessage"] {{
   border: 1px solid var(--border-light);
   border-radius: 16px;
   padding: 10px 12px;
+}}
+
+div[data-testid="stChatMessage"] > div,
+div[data-testid="stChatMessageContent"] {{
+  background: var(--surface-strong) !important;
+  color: var(--ink) !important;
+}}
+
+div[data-testid="stChatMessage"] [class*="stChatMessage"] {{
+  background: var(--surface-strong) !important;
+  color: var(--ink) !important;
+}}
+
+div.stChatMessage,
+div.stChatMessageContent {{
+  background: var(--surface-strong) !important;
+  color: var(--ink) !important;
+}}
+
+div[data-testid="stChatMessage"] [data-testid="stMarkdownContainer"] {{
+  background: transparent !important;
 }}
 
 div[data-testid="stChatMessage"] * {{
