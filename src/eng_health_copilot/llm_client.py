@@ -20,23 +20,11 @@ def _get_client() -> Optional[OpenAI]:
     return _client
 
 
-def generate_weekly_summary_llm(
+def build_weekly_summary_prompts(
     metrics: Dict[str, Any],
     anomalies: List[Dict[str, Any]],
     context: Dict[str, Any],
-) -> Optional[str]:
-    """
-    Use OpenAI to produce a PM-facing weekly eng health summary.
-
-    Returns the text, or None if no client / error.
-    """
-    client = _get_client()
-    if client is None:
-        return None
-
-    settings = get_settings()
-    model = settings.openai_model or "gpt-4.1-mini"
-
+) -> tuple[str, str, Dict[str, Any]]:
     payload = {
         "latest_metrics": metrics,
         "anomalies": anomalies,
@@ -64,6 +52,32 @@ def generate_weekly_summary_llm(
         "- 3–5 concrete recommendations for the team (e.g., reduce WIP, tackle aging PRs, limit PR size)\n\n"
         "Be direct, non-fluffy, and assume the reader is a busy PM or EM.\n\n"
         f"Data JSON:\n```json\n{json.dumps(payload, default=str)}\n```"
+    )
+
+    return system_prompt, user_prompt, payload
+
+
+def generate_weekly_summary_llm(
+    metrics: Dict[str, Any],
+    anomalies: List[Dict[str, Any]],
+    context: Dict[str, Any],
+) -> Optional[str]:
+    """
+    Use OpenAI to produce a PM-facing weekly eng health summary.
+
+    Returns the text, or None if no client / error.
+    """
+    client = _get_client()
+    if client is None:
+        return None
+
+    settings = get_settings()
+    model = settings.openai_model or "gpt-4.1-mini"
+
+    system_prompt, user_prompt, _payload = build_weekly_summary_prompts(
+        metrics,
+        anomalies,
+        context,
     )
 
     try:
