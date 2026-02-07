@@ -22,9 +22,20 @@ class Settings:
     openai_api_key: Optional[str]
     openai_model: str
 
+    # Capture settings
+    weekly_summary_capture_enabled: bool
+    weekly_summary_capture_path: Path
+
 
 def get_settings() -> Settings:
     token = os.getenv("GITHUB_TOKEN", "")
+    capture_enabled = os.getenv("WEEKLY_SUMMARY_CAPTURE", "").lower() in ("1", "true", "yes", "on")
+    capture_path = Path(
+        os.getenv(
+            "WEEKLY_SUMMARY_CAPTURE_PATH",
+            str(ROOT_DIR / "data" / "weekly_summary_inputs.jsonl"),
+        )
+    )
 
     return Settings(
         # ---- GitHub ----
@@ -34,4 +45,8 @@ def get_settings() -> Settings:
         # ---- OpenAI ----
         openai_api_key=os.getenv("OPENAI_API_KEY"),
         openai_model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
+
+        # ---- Capture ----
+        weekly_summary_capture_enabled=capture_enabled,
+        weekly_summary_capture_path=capture_path,
     )
