@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
@@ -20,6 +21,25 @@ def _get_client() -> Optional[OpenAI]:
     return _client
 
 
+def _capture_weekly_summary_inputs(
+    capture_path: Path,
+    model: str,
+    metrics: Dict[str, Any],
+    anomalies: List[Dict[str, Any]],
+    context: Dict[str, Any],
+) -> None:
+    capture_path.parent.mkdir(parents=True, exist_ok=True)
+    record = {
+        "task": "weekly_summary",
+        "model": model,
+        "metrics": metrics,
+        "anomalies": anomalies,
+        "context": context,
+    }
+    with capture_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, default=str) + "\n")
+
+
 def generate_weekly_summary_llm(
     metrics: Dict[str, Any],
     anomalies: List[Dict[str, Any]],
@@ -30,10 +50,6 @@ def generate_weekly_summary_llm(
 
     Returns the text, or None if no client / error.
     """
-    client = _get_client()
-    if client is None:
-        return None
-
     settings = get_settings()
     model = settings.openai_model or "gpt-4.1-mini"
 
@@ -42,6 +58,19 @@ def generate_weekly_summary_llm(
         "anomalies": anomalies,
         "context": context,
     }
+
+    if settings.weekly_summary_capture_enabled:
+        _capture_weekly_summary_inputs(
+            settings.weekly_summary_capture_path,
+            model,
+            metrics,
+            anomalies,
+            context,
+        )
+
+    client = _get_client()
+    if client is None:
+        return None
 
     system_prompt = (
         "You are an experienced engineering manager and product-minded PM. "
