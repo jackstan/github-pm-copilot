@@ -1,4 +1,5 @@
 import json
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from openai import OpenAI
@@ -19,17 +20,48 @@ def _get_client() -> Optional[OpenAI]:
         _client = OpenAI(api_key=settings.openai_api_key)
     return _client
 
+def _capture_weekly_summary_inputs(
+    capture_path: Path,
+    model: str,
+    metrics: Dict[str, Any],
+    anomalies: List[Dict[str, Any]],
+    context: Dict[str, Any],
+) -> None:
+    capture_path.parent.mkdir(parents=True, exist_ok=True)
+    record = {
+        "task": "weekly_summary",
+        "model": model,
+        "metrics": metrics,
+        "anomalies": anomalies,
+        "context": context,
+    }
+    with capture_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(record, default=str) + "\n")
 
 def build_weekly_summary_prompts(
     metrics: Dict[str, Any],
     anomalies: List[Dict[str, Any]],
     context: Dict[str, Any],
 ) -> tuple[str, str, Dict[str, Any]]:
+  
     payload = {
         "latest_metrics": metrics,
         "anomalies": anomalies,
         "context": context,
     }
+
+    if settings.weekly_summary_capture_enabled:
+        _capture_weekly_summary_inputs(
+            settings.weekly_summary_capture_path,
+            model,
+            metrics,
+            anomalies,
+            context,
+        )
+
+    client = _get_client()
+    if client is None:
+        return None
 
     system_prompt = (
         "You are an experienced engineering manager and product-minded PM. "
