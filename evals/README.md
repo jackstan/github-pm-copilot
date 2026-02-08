@@ -79,6 +79,11 @@ Each slice includes:
 - `calibration_average`
 - `critical_average`
 
+The output also includes:
+
+- `score_coverage`: how many cases had numeric model scores per criterion.
+- `warnings`: run-level warnings (for example when no numeric grader scores were extracted).
+
 ## Running the eval
 
 ```bash

@@ -598,6 +598,38 @@ def _score_pass(score: Any, threshold: float) -> bool:
     return score_f >= threshold
 
 
+def _extract_result_score(result: Dict[str, Any]) -> Optional[float]:
+    direct = _to_float(result.get("score"))
+    if direct is not None:
+        return direct
+
+    candidates = [
+        result.get("value"),
+        (result.get("result") or {}).get("score") if isinstance(result.get("result"), dict) else None,
+        (result.get("output") or {}).get("score") if isinstance(result.get("output"), dict) else None,
+        (result.get("grading_result") or {}).get("score") if isinstance(result.get("grading_result"), dict) else None,
+    ]
+    for candidate in candidates:
+        parsed = _to_float(candidate)
+        if parsed is not None:
+            return parsed
+    return None
+
+
+def _extract_result_pass(result: Dict[str, Any]) -> Optional[bool]:
+    keys = [
+        result.get("passed"),
+        result.get("pass"),
+        (result.get("result") or {}).get("passed") if isinstance(result.get("result"), dict) else None,
+        (result.get("output") or {}).get("passed") if isinstance(result.get("output"), dict) else None,
+        (result.get("grading_result") or {}).get("passed") if isinstance(result.get("grading_result"), dict) else None,
+    ]
+    for value in keys:
+        if isinstance(value, bool):
+            return value
+    return None
+
+
 def build_case_results(output_items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     cases: List[Dict[str, Any]] = []
 
@@ -611,14 +643,21 @@ def build_case_results(output_items: List[Dict[str, Any]]) -> List[Dict[str, Any
         results = output_item.get("results", [])
 
         scores: Dict[str, Optional[float]] = {name: None for name in ALL_CRITERIA}
+        explicit_pass: Dict[str, Optional[bool]] = {name: None for name in ALL_CRITERIA}
         for result in results:
             if not isinstance(result, dict):
                 continue
             name = result.get("name")
             if name in scores:
-                scores[name] = _to_float(result.get("score"))
+                scores[name] = _extract_result_score(result)
+                explicit_pass[name] = _extract_result_pass(result)
 
-        criterion_pass = {name: _score_pass(scores.get(name), DEFAULT_PASS_THRESHOLD) for name in ALL_CRITERIA}
+        criterion_pass: Dict[str, bool] = {}
+        for name in ALL_CRITERIA:
+            if explicit_pass.get(name) is not None:
+                criterion_pass[name] = bool(explicit_pass[name])
+            else:
+                criterion_pass[name] = _score_pass(scores.get(name), DEFAULT_PASS_THRESHOLD)
         deterministic = run_deterministic_checks(source_item if isinstance(source_item, dict) else {})
 
         cases.append(
@@ -631,6 +670,7 @@ def build_case_results(output_items: List[Dict[str, Any]]) -> List[Dict[str, Any
                 "model_all_pass": all(criterion_pass.values()),
                 "deterministic": deterministic,
                 "anomaly_count": int((source_item or {}).get("anomaly_count") or 0) if isinstance(source_item, dict) else 0,
+                "output_text": (source_item or {}).get("output_text") if isinstance(source_item, dict) else "",
             }
         )
 
@@ -714,6 +754,19 @@ def compute_slice_scores(cases: List[Dict[str, Any]]) -> Dict[str, Dict[str, Any
         }
 
     return out
+
+
+def compute_score_coverage(cases: List[Dict[str, Any]]) -> Dict[str, Dict[str, int]]:
+    coverage: Dict[str, Dict[str, int]] = {}
+    total = len(cases)
+    for criterion in ALL_CRITERIA:
+        scored = sum(1 for c in cases if _to_float((c.get("scores") or {}).get(criterion)) is not None)
+        coverage[criterion] = {
+            "scored_cases": scored,
+            "missing_cases": max(0, total - scored),
+            "total_cases": total,
+        }
+    return coverage
 
 
 def compare_with_baseline(
@@ -1127,6 +1180,13 @@ def main() -> None:
 
     case_results = build_case_results(output_items)
     slice_scores = compute_slice_scores(case_results)
+    score_coverage = compute_score_coverage(case_results)
+    warnings: List[str] = []
+    if case_results and all(cov["scored_cases"] == 0 for cov in score_coverage.values()):
+        warnings.append(
+            "No numeric model-graded scores were extracted for any criterion. "
+            "Treat criterion pass rates as unreliable for this run."
+        )
 
     baseline_payload = _load_baseline(args.baseline)
     baseline_comparison = compare_with_baseline(
@@ -1156,7 +1216,9 @@ def main() -> None:
         "calibration_criteria": CALIBRATION_CRITERIA,
         "results": case_results,
         "slice_scores": slice_scores,
+        "score_coverage": score_coverage,
         "baseline_comparison": baseline_comparison,
+        "warnings": warnings,
     }
 
     if args.persist_results:

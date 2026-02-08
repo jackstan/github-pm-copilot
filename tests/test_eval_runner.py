@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from evals.run_weekly_summary_eval import (
     build_eval_schema,
     compare_with_baseline,
+    compute_score_coverage,
     compute_slice_scores,
     load_production_dataset,
     persist_eval_results_to_db,
@@ -142,6 +143,9 @@ class TestEvalRunnerHelpers(unittest.TestCase):
         )
         self.assertIn("metric_deltas", comparison)
         self.assertIsInstance(comparison["soft_gate_failed"], bool)
+        coverage = compute_score_coverage(cases)
+        self.assertEqual(coverage["format_correctness"]["total_cases"], 2)
+        self.assertEqual(coverage["format_correctness"]["scored_cases"], 2)
 
     def test_load_production_dataset_from_sqlite(self) -> None:
         original_db_path = os.environ.get("ENG_HEALTH_DB_PATH")
