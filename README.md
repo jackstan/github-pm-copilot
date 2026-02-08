@@ -110,6 +110,9 @@ Notes:
 - If `DATABASE_URL` is set, SQLite is ignored.
 - For local development without Postgres, leave `DATABASE_URL` empty and use SQLite.
 
+For scheduled evals, this repo includes a `render.yaml` blueprint with a
+nightly cron job definition (`github-pm-copilot-nightly-eval`).
+
 ## 🔐 Security Hygiene
 
 - Never commit real credentials (GitHub tokens, OpenAI keys, database URLs) into tracked files.

@@ -1,0 +1,14 @@
+services:
+  - type: cron
+    name: github-pm-copilot-nightly-eval
+    runtime: docker
+    plan: starter
+    schedule: "0 9 * * *"
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
+    dockerCommand: "bash -lc 'PYTHONPATH=src python evals/run_weekly_summary_eval.py --production-only --production-limit 20 --production-since-hours 168 --grader-only --run-name nightly-production-eval --output /tmp/weekly_summary_eval_results.json'"
+    envVars:
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false

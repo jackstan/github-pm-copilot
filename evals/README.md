@@ -132,6 +132,10 @@ Notes:
 
 Create a Render Cron Job in the same repo/environment as the web service.
 
+If the Render UI does not show a command/start-command field, use the
+blueprint file in this repo (`render.yaml`) and create/apply via
+**Blueprint** so the cron command is taken from `dockerCommand`.
+
 Suggested schedule:
 
 - Nightly production-only grading: `0 9 * * *` (09:00 UTC daily)
