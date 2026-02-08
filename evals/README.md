@@ -9,6 +9,7 @@ This folder contains the weekly-summary eval dataset and runner used to score ou
 - `run_weekly_summary_eval.py` — Runner that:
   - generates summaries with the same prompt-construction path as production,
   - can grade stored production summaries from SQLite (`analysis_runs`),
+  - persists eval run outputs into DB tables (`eval_runs`, `eval_case_results`) by default,
   - submits model-graded eval criteria,
   - applies deterministic checks,
   - computes per-slice metrics,
@@ -94,6 +95,14 @@ PYTHONPATH=src python3 evals/run_weekly_summary_eval.py \
   --output evals/weekly_summary_eval_results.json
 ```
 
+Disable DB persistence for ad-hoc local runs:
+
+```bash
+PYTHONPATH=src python3 evals/run_weekly_summary_eval.py \
+  --dataset evals/weekly_summary_dataset_v2.jsonl \
+  --no-persist-results
+```
+
 ## Include production runs
 
 You can include recent production summaries persisted in `analysis_runs`:
@@ -112,6 +121,7 @@ Notes:
 - Use `--production-only` for a pure production-run eval slice.
 - If production runs are in Postgres, set `DATABASE_URL`.
 - If production runs are in SQLite, set `ENG_HEALTH_DB_PATH` when non-default.
+- Runner writes aggregate run rows to `eval_runs` and case rows to `eval_case_results` unless `--no-persist-results` is set.
 
 ## Soft gate + baseline workflow
 

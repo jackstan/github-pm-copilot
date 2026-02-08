@@ -99,6 +99,19 @@ def _mean(values: Sequence[float]) -> Optional[float]:
     return round(sum(values) / len(values), 4)
 
 
+def _to_int(value: Any, default: int = 0) -> int:
+    try:
+        if value is None:
+            return default
+        return int(value)
+    except Exception:
+        return default
+
+
+def _json_dump(value: Any) -> str:
+    return json.dumps(value, default=str, sort_keys=True)
+
+
 def validate_dataset_item(item: Dict[str, Any]) -> None:
     required_keys = ["id", "metrics", "anomalies", "context", "expected", "rubric", "tags", "expectations"]
     missing = [k for k in required_keys if k not in item]
@@ -778,6 +791,123 @@ def _load_baseline(path: Optional[Path]) -> Optional[Dict[str, Any]]:
         return json.load(handle)
 
 
+def persist_eval_results_to_db(
+    output_payload: Dict[str, Any],
+    *,
+    model: str,
+    grading_model: str,
+    eval_name: str,
+    run_name: str,
+    dataset_path: str,
+    source: str = "weekly_summary_eval_v2",
+) -> str:
+    run_key = str(output_payload.get("run_id") or f"local_eval_{int(time.time())}")
+    eval_id = str(output_payload.get("eval_id") or "")
+    eval_run_id = str(output_payload.get("run_id") or "")
+    dataset_info = output_payload.get("dataset_info") or {}
+    baseline = output_payload.get("baseline_comparison") or {}
+    slice_scores = output_payload.get("slice_scores") or {}
+
+    overall_average = _to_float(((slice_scores.get("overall") or {}).get("overall_average")))
+    sparse_average = _to_float(((slice_scores.get("sparse_data") or {}).get("overall_average")))
+    sparse_calibration = _to_float(((slice_scores.get("sparse_data") or {}).get("calibration_average")))
+
+    conn = get_db()
+    try:
+        conn.execute(
+            """
+            INSERT INTO eval_runs (
+                run_key, source, eval_id, eval_run_id, eval_name, run_name,
+                model, grading_model, dataset_path,
+                static_count, production_count, total_count, ran_count, skipped_count,
+                baseline_present, soft_gate_failed,
+                overall_average, sparse_average, sparse_calibration_average,
+                output_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(run_key) DO UPDATE SET
+                source = excluded.source,
+                eval_id = excluded.eval_id,
+                eval_run_id = excluded.eval_run_id,
+                eval_name = excluded.eval_name,
+                run_name = excluded.run_name,
+                model = excluded.model,
+                grading_model = excluded.grading_model,
+                dataset_path = excluded.dataset_path,
+                static_count = excluded.static_count,
+                production_count = excluded.production_count,
+                total_count = excluded.total_count,
+                ran_count = excluded.ran_count,
+                skipped_count = excluded.skipped_count,
+                baseline_present = excluded.baseline_present,
+                soft_gate_failed = excluded.soft_gate_failed,
+                overall_average = excluded.overall_average,
+                sparse_average = excluded.sparse_average,
+                sparse_calibration_average = excluded.sparse_calibration_average,
+                output_json = excluded.output_json
+            """,
+            (
+                run_key,
+                source,
+                eval_id,
+                eval_run_id,
+                eval_name,
+                run_name,
+                model,
+                grading_model,
+                dataset_path,
+                _to_int(dataset_info.get("static_count"), 0),
+                _to_int(dataset_info.get("production_count"), 0),
+                _to_int(dataset_info.get("total_count"), 0),
+                _to_int(dataset_info.get("ran_count"), 0),
+                _to_int(dataset_info.get("skipped_count"), 0),
+                bool(baseline.get("baseline_present")),
+                bool(baseline.get("soft_gate_failed")),
+                overall_average,
+                sparse_average,
+                sparse_calibration,
+                _json_dump(output_payload),
+            ),
+        )
+
+        for case in output_payload.get("results", []) or []:
+            conn.execute(
+                """
+                INSERT INTO eval_case_results (
+                    run_key, case_id, status, tags_json, scores_json,
+                    criterion_pass_json, deterministic_json,
+                    anomaly_count, model_all_pass
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(run_key, case_id) DO UPDATE SET
+                    status = excluded.status,
+                    tags_json = excluded.tags_json,
+                    scores_json = excluded.scores_json,
+                    criterion_pass_json = excluded.criterion_pass_json,
+                    deterministic_json = excluded.deterministic_json,
+                    anomaly_count = excluded.anomaly_count,
+                    model_all_pass = excluded.model_all_pass
+                """,
+                (
+                    run_key,
+                    str(case.get("id") or "unknown"),
+                    case.get("status"),
+                    _json_dump(case.get("tags", [])),
+                    _json_dump(case.get("scores", {})),
+                    _json_dump(case.get("criterion_pass", {})),
+                    _json_dump(case.get("deterministic", {})),
+                    _to_int(case.get("anomaly_count"), 0),
+                    bool(case.get("model_all_pass")),
+                ),
+            )
+
+        conn.commit()
+    finally:
+        conn.close()
+
+    return run_key
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run weekly summary evals against the OpenAI eval platform.")
     parser.add_argument(
@@ -877,6 +1007,12 @@ def main() -> None:
         "--grader-only",
         action="store_true",
         help="Use pre-existing output_text from dataset/production rows when available.",
+    )
+    parser.add_argument(
+        "--persist-results",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Persist aggregate + per-case eval results into eval_runs/eval_case_results tables.",
     )
 
     args = parser.parse_args()
@@ -1022,6 +1158,18 @@ def main() -> None:
         "slice_scores": slice_scores,
         "baseline_comparison": baseline_comparison,
     }
+
+    if args.persist_results:
+        persisted_run_key = persist_eval_results_to_db(
+            output_payload,
+            model=model,
+            grading_model=grading_model,
+            eval_name=args.eval_name,
+            run_name=args.run_name,
+            dataset_path=str(args.dataset),
+            source="weekly_summary_eval_v2",
+        )
+        output_payload["persisted_run_key"] = persisted_run_key
 
     args.output.write_text(json.dumps(output_payload, indent=2), encoding="utf-8")
     print(json.dumps(output_payload, indent=2))

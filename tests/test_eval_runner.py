@@ -8,6 +8,7 @@ from evals.run_weekly_summary_eval import (
     compare_with_baseline,
     compute_slice_scores,
     load_production_dataset,
+    persist_eval_results_to_db,
     prepare_eval_item,
     run_deterministic_checks,
 )
@@ -189,6 +190,65 @@ class TestEvalRunnerHelpers(unittest.TestCase):
             self.assertEqual(items[0]["metadata"]["repo"], "acme/widget")
             self.assertIn("sparse_data", items[0]["tags"])
             self.assertIn("output_text", items[0])
+
+        if original_db_path is None:
+            os.environ.pop("ENG_HEALTH_DB_PATH", None)
+        else:
+            os.environ["ENG_HEALTH_DB_PATH"] = original_db_path
+
+    def test_persist_eval_results_to_db(self) -> None:
+        original_db_path = os.environ.get("ENG_HEALTH_DB_PATH")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            db_path = os.path.join(tmpdir, "eng_health.db")
+            os.environ["ENG_HEALTH_DB_PATH"] = db_path
+
+            payload = {
+                "eval_id": "eval_123",
+                "run_id": "evalrun_123",
+                "dataset_info": {
+                    "static_count": 1,
+                    "production_count": 1,
+                    "total_count": 2,
+                    "ran_count": 2,
+                    "skipped_count": 0,
+                },
+                "slice_scores": {
+                    "overall": {"overall_average": 3.8},
+                    "sparse_data": {"overall_average": 3.4, "calibration_average": 3.6},
+                },
+                "baseline_comparison": {"baseline_present": True, "soft_gate_failed": False},
+                "results": [
+                    {
+                        "id": "case_a",
+                        "status": "pass",
+                        "tags": ["sparse_data"],
+                        "scores": {"format_correctness": 4.0},
+                        "criterion_pass": {"format_correctness": True},
+                        "deterministic": {"all_pass": True},
+                        "anomaly_count": 0,
+                        "model_all_pass": True,
+                    }
+                ],
+            }
+
+            run_key = persist_eval_results_to_db(
+                payload,
+                model="gpt-4.1-mini",
+                grading_model="gpt-4.1-mini",
+                eval_name="weekly-summary-markdown-eval-v2",
+                run_name="weekly-summary-run-v2",
+                dataset_path="evals/weekly_summary_dataset_v2.jsonl",
+            )
+            self.assertEqual(run_key, "evalrun_123")
+
+            conn = get_db()
+            try:
+                run_count = conn.execute("SELECT COUNT(*) FROM eval_runs").fetchone()[0]
+                case_count = conn.execute("SELECT COUNT(*) FROM eval_case_results").fetchone()[0]
+                self.assertEqual(run_count, 1)
+                self.assertEqual(case_count, 1)
+            finally:
+                conn.close()
 
         if original_db_path is None:
             os.environ.pop("ENG_HEALTH_DB_PATH", None)

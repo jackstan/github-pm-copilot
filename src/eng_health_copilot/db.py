@@ -128,6 +128,43 @@ CREATE TABLE IF NOT EXISTS analysis_runs (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS eval_runs (
+    run_key TEXT PRIMARY KEY,
+    source TEXT NOT NULL,
+    eval_id TEXT,
+    eval_run_id TEXT,
+    eval_name TEXT,
+    run_name TEXT,
+    model TEXT,
+    grading_model TEXT,
+    dataset_path TEXT,
+    static_count INTEGER,
+    production_count INTEGER,
+    total_count INTEGER,
+    ran_count INTEGER,
+    skipped_count INTEGER,
+    baseline_present INTEGER,
+    soft_gate_failed INTEGER,
+    overall_average REAL,
+    sparse_average REAL,
+    sparse_calibration_average REAL,
+    output_json TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS eval_case_results (
+    run_key TEXT NOT NULL,
+    case_id TEXT NOT NULL,
+    status TEXT,
+    tags_json TEXT,
+    scores_json TEXT,
+    criterion_pass_json TEXT,
+    deterministic_json TEXT,
+    anomaly_count INTEGER,
+    model_all_pass INTEGER,
+    PRIMARY KEY (run_key, case_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_issues_repo_number
 ON issues(repo_owner, repo_name, number);
 
@@ -151,6 +188,12 @@ ON weekly_metrics(repo_owner, repo_name, week_start);
 
 CREATE INDEX IF NOT EXISTS idx_analysis_runs_repo_completed
 ON analysis_runs(repo_owner, repo_name, completed_at);
+
+CREATE INDEX IF NOT EXISTS idx_eval_runs_created
+ON eval_runs(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_eval_case_results_run
+ON eval_case_results(run_key);
 """
 
 SCHEMA_POSTGRES = """
@@ -274,6 +317,43 @@ CREATE TABLE IF NOT EXISTS analysis_runs (
     created_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS eval_runs (
+    run_key TEXT PRIMARY KEY,
+    source TEXT NOT NULL,
+    eval_id TEXT,
+    eval_run_id TEXT,
+    eval_name TEXT,
+    run_name TEXT,
+    model TEXT,
+    grading_model TEXT,
+    dataset_path TEXT,
+    static_count BIGINT,
+    production_count BIGINT,
+    total_count BIGINT,
+    ran_count BIGINT,
+    skipped_count BIGINT,
+    baseline_present BOOLEAN,
+    soft_gate_failed BOOLEAN,
+    overall_average DOUBLE PRECISION,
+    sparse_average DOUBLE PRECISION,
+    sparse_calibration_average DOUBLE PRECISION,
+    output_json TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS eval_case_results (
+    run_key TEXT NOT NULL,
+    case_id TEXT NOT NULL,
+    status TEXT,
+    tags_json TEXT,
+    scores_json TEXT,
+    criterion_pass_json TEXT,
+    deterministic_json TEXT,
+    anomaly_count BIGINT,
+    model_all_pass BOOLEAN,
+    PRIMARY KEY (run_key, case_id)
+);
+
 CREATE INDEX IF NOT EXISTS idx_issues_repo_number
 ON issues(repo_owner, repo_name, number);
 
@@ -297,6 +377,12 @@ ON weekly_metrics(repo_owner, repo_name, week_start);
 
 CREATE INDEX IF NOT EXISTS idx_analysis_runs_repo_completed
 ON analysis_runs(repo_owner, repo_name, completed_at);
+
+CREATE INDEX IF NOT EXISTS idx_eval_runs_created
+ON eval_runs(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_eval_case_results_run
+ON eval_case_results(run_key);
 """
 
 
