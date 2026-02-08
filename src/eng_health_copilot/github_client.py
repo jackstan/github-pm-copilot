@@ -79,9 +79,8 @@ def fetch_pulls_for_metrics(
     """
     Fetch PRs for metrics computation.
 
-    Uses pagination and stops once PRs are older than `since` based on created_at
-    (sorted by created desc). This can fetch many PRs, but only within the
-    desired lookback window.
+    Uses pagination and stops once PRs are older than `since` based on updated_at
+    (sorted by updated desc). This captures recently changed older PRs too.
 
     We treat `since` as naive UTC, and convert GitHub timestamps to naive UTC
     before comparing.
@@ -90,7 +89,7 @@ def fetch_pulls_for_metrics(
     params: Dict[str, Any] = {
         "state": "all",
         "per_page": 100,
-        "sort": "created",
+        "sort": "updated",
         "direction": "desc",
     }
 
@@ -108,11 +107,11 @@ def fetch_pulls_for_metrics(
 
         stop = False
         for pr in data:
-            created_at = pr.get("created_at")
-            if created_at:
+            updated_at = pr.get("updated_at") or pr.get("created_at")
+            if updated_at:
                 try:
                     # GitHub timestamps are ISO 8601 with Z
-                    created_dt = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+                    created_dt = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
                     # Convert to naive UTC to match since_naive_utc
                     created_dt = created_dt.astimezone(timezone.utc).replace(tzinfo=None)
                 except ValueError:

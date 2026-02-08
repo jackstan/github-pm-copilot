@@ -43,12 +43,23 @@ def build_weekly_summary_prompts(
     anomalies: List[Dict[str, Any]],
     context: Dict[str, Any],
 ) -> tuple[str, str, Dict[str, Any]]:
-  
+    settings = get_settings()
+    model = settings.openai_model or "gpt-4.1-mini"
+
     payload = {
         "latest_metrics": metrics,
         "anomalies": anomalies,
         "context": context,
     }
+
+    data_sufficiency = context.get("data_sufficiency") or {}
+    data_sufficiency_level = data_sufficiency.get("level")
+    low_data_instruction = ""
+    if data_sufficiency_level == "low":
+        low_data_instruction = (
+            "Data sufficiency is LOW. Explicitly call out limited confidence, avoid strong trend claims, "
+            "and prioritize instrumentation/repo-hygiene recommendations.\n\n"
+        )
 
     if settings.weekly_summary_capture_enabled:
         _capture_weekly_summary_inputs(
@@ -58,10 +69,6 @@ def build_weekly_summary_prompts(
             anomalies,
             context,
         )
-
-    client = _get_client()
-    if client is None:
-        return None
 
     system_prompt = (
         "You are an experienced engineering manager and product-minded PM. "
@@ -82,6 +89,8 @@ def build_weekly_summary_prompts(
         "### Additional context and recommendations\n"
         "- What might be driving this (CI, large PRs, reviews, releases)\n"
         "- 3–5 concrete recommendations for the team (e.g., reduce WIP, tackle aging PRs, limit PR size)\n\n"
+        "Use any `context.data_sufficiency` information to calibrate confidence and recommendations.\n"
+        f"{low_data_instruction}"
         "Be direct, non-fluffy, and assume the reader is a busy PM or EM.\n\n"
         f"Data JSON:\n```json\n{json.dumps(payload, default=str)}\n```"
     )

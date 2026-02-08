@@ -17,6 +17,11 @@ Pulls live data for any public repo:
 - Commits & contributors
 - Releases / tags
 
+Ingestion is incremental with checkpointed upserts:
+- New/changed rows are refreshed from recent windows.
+- Historical rows are retained when unchanged.
+- Repeat runs can reuse fresh local data unless **Force refresh from GitHub** is selected.
+
 ### **Engineering Health Metrics (Weekly)**
 - **Throughput:** merged PRs/week  
 - **Lead Time:** p50 & p90  
@@ -85,6 +90,26 @@ The agent answers using retrieved metrics, context, and anomalies.
 
 Uses **structured retrieval-augmented generation (RAG)** to ground LLM outputs in real engineering data.
 
+## ⚙️ Runtime Settings
+
+- `DATABASE_URL`: Postgres connection string. When set, app uses Postgres.
+- `ENG_HEALTH_DB_PATH`: SQLite database path fallback (default `data/eng_health.db`) when `DATABASE_URL` is not set.
+- `INGEST_FRESHNESS_MINUTES`: Skip GitHub refetch if the repo was synced recently (default `30`).
+- `INGEST_OVERLAP_HOURS`: Overlap window for incremental sync to catch late updates (default `24`).
+- `WEEKLY_SUMMARY_CAPTURE=1`: Optional JSONL input capture for prompt/debug workflows.
+
+## 🗄️ Render Postgres Setup
+
+1. Create a Render Postgres instance (for example `Basic-256mb`).
+2. In your web service environment variables, set:
+   - `DATABASE_URL` = Render Postgres internal connection string.
+3. Redeploy the web service.
+
+Notes:
+- No manual migration step is required for this project right now; tables are created on startup if missing.
+- If `DATABASE_URL` is set, SQLite is ignored.
+- For local development without Postgres, leave `DATABASE_URL` empty and use SQLite.
+
 ---
 # 📅 Product Roadmap
 
@@ -137,5 +162,3 @@ _PM actions: Define onboarding flow, run usability tests, validate digest useful
 - **Success criteria:** Define measurable outcomes (e.g., “teams use weekly summary in planning,” “early detection of long-tail PRs”).  
 
 ---
-
-

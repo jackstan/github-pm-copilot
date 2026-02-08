@@ -2,12 +2,12 @@ from typing import Optional, Dict, Any
 
 import pandas as pd
 
-from .db import get_db
+from .db import get_db, read_sql_query
 
 
 def get_last_weekly_metrics(owner: str, repo: str) -> Optional[Dict[str, Any]]:
     conn = get_db()
-    df = pd.read_sql_query(
+    df = read_sql_query(
         """
         SELECT *
         FROM weekly_metrics
@@ -27,7 +27,7 @@ def get_last_weekly_metrics(owner: str, repo: str) -> Optional[Dict[str, Any]]:
 
 def get_weekly_metrics_history(owner: str, repo: str) -> pd.DataFrame:
     conn = get_db()
-    df = pd.read_sql_query(
+    df = read_sql_query(
         """
         SELECT
             week_start,
@@ -76,7 +76,7 @@ def get_llm_context(
     conn = get_db()
     try:
         # ---------- Weekly metrics history ----------
-        hist_df = pd.read_sql_query(
+        hist_df = read_sql_query(
             """
             SELECT *
             FROM weekly_metrics
@@ -97,7 +97,7 @@ def get_llm_context(
             weekly_history = recent_hist.to_dict(orient="records")
 
         # ---------- Recent pull requests ----------
-        pr_df = pd.read_sql_query(
+        pr_df = read_sql_query(
             """
             SELECT
                 number,
@@ -123,7 +123,7 @@ def get_llm_context(
         recent_prs = pr_df.to_dict(orient="records") if not pr_df.empty else []
 
         # ---------- Recent PR reviews ----------
-        reviews_df = pd.read_sql_query(
+        reviews_df = read_sql_query(
             """
             SELECT
                 pr_number,
@@ -142,7 +142,7 @@ def get_llm_context(
         recent_reviews = reviews_df.to_dict(orient="records") if not reviews_df.empty else []
 
         # ---------- Recent CI statuses ----------
-        ci_df = pd.read_sql_query(
+        ci_df = read_sql_query(
             """
             SELECT
                 sha,
@@ -161,7 +161,7 @@ def get_llm_context(
         recent_ci = ci_df.to_dict(orient="records") if not ci_df.empty else []
 
         # ---------- Recent releases ----------
-        rel_df = pd.read_sql_query(
+        rel_df = read_sql_query(
             """
             SELECT
                 tag_name,

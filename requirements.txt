@@ -5,3 +5,4 @@ requests
 python-dotenv
 altair
 openai>=1.6.0
+psycopg2-binary

@@ -104,6 +104,11 @@ days_back = st.sidebar.number_input(
     step=7,
     disabled=sidebar_disabled,
 )
+force_refresh = st.sidebar.checkbox(
+    "Force refresh from GitHub",
+    value=False,
+    disabled=sidebar_disabled,
+)
 
 st.sidebar.caption("Tip: Click **Run analysis** to generate the AI report + charts. Initial load may be slow for large repos.")
 
@@ -179,6 +184,7 @@ else:
 def _perform_analysis() -> None:
     st.session_state["is_running"] = True
     st.session_state["run_requested"] = False
+    analysis_succeeded = False
 
     try:
         with st.status("Running analysis…", expanded=True) as status:
@@ -203,6 +209,7 @@ def _perform_analysis() -> None:
                 owner_input,
                 repo_input,
                 days_back=int(days_back),
+                force_refresh=bool(force_refresh),
                 on_status=_on_status,
             )
 
@@ -223,6 +230,7 @@ def _perform_analysis() -> None:
 
             _render_progress(100)
             status.update(label="Done.", state="complete")
+            analysis_succeeded = True
 
     except Exception as e:
         st.error(f"Analysis failed: {e}")
@@ -230,7 +238,8 @@ def _perform_analysis() -> None:
     finally:
         st.session_state["is_running"] = False
 
-    st.rerun()
+    if analysis_succeeded:
+        st.rerun()
 
 # Kick off analysis
 if st.session_state["run_requested"] and not st.session_state["is_running"]:

@@ -26,6 +26,11 @@ class Settings:
     weekly_summary_capture_enabled: bool
     weekly_summary_capture_path: Path
 
+    # Storage / ingest settings
+    db_path: Path
+    ingest_freshness_minutes: int
+    ingest_overlap_hours: int
+
 
 def get_settings() -> Settings:
     token = os.getenv("GITHUB_TOKEN", "")
@@ -34,6 +39,12 @@ def get_settings() -> Settings:
         os.getenv(
             "WEEKLY_SUMMARY_CAPTURE_PATH",
             str(ROOT_DIR / "data" / "weekly_summary_inputs.jsonl"),
+        )
+    )
+    db_path = Path(
+        os.getenv(
+            "ENG_HEALTH_DB_PATH",
+            str(ROOT_DIR / "data" / "eng_health.db"),
         )
     )
 
@@ -49,4 +60,9 @@ def get_settings() -> Settings:
         # ---- Capture ----
         weekly_summary_capture_enabled=capture_enabled,
         weekly_summary_capture_path=capture_path,
+
+        # ---- Storage / ingest ----
+        db_path=db_path,
+        ingest_freshness_minutes=int(os.getenv("INGEST_FRESHNESS_MINUTES", "30")),
+        ingest_overlap_hours=int(os.getenv("INGEST_OVERLAP_HOURS", "24")),
     )

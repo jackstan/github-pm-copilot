@@ -4,7 +4,7 @@ from typing import Dict, Any, List
 import numpy as np
 import pandas as pd
 
-from .db import get_db
+from .db import get_db, read_sql_query
 
 
 def recompute_weekly_metrics(owner: str, repo: str, weeks_back: int = 12) -> Dict[str, Any]:
@@ -18,7 +18,7 @@ def recompute_weekly_metrics(owner: str, repo: str, weeks_back: int = 12) -> Dic
     start = now - timedelta(weeks=weeks_back)
 
     # --- Load raw PRs, issues, and commits for this repo ---
-    pr_df = pd.read_sql_query(
+    pr_df = read_sql_query(
         """
         SELECT created_at, merged_at, closed_at, state
         FROM pull_requests
@@ -30,7 +30,7 @@ def recompute_weekly_metrics(owner: str, repo: str, weeks_back: int = 12) -> Dic
         params=(owner, repo, start.isoformat()),
     )
 
-    issues_df = pd.read_sql_query(
+    issues_df = read_sql_query(
         """
         SELECT created_at, closed_at, state, labels
         FROM issues
@@ -42,7 +42,7 @@ def recompute_weekly_metrics(owner: str, repo: str, weeks_back: int = 12) -> Dic
         params=(owner, repo, start.isoformat()),
     )
 
-    commits_df = pd.read_sql_query(
+    commits_df = read_sql_query(
         """
         SELECT author_date, author_login
         FROM commits
