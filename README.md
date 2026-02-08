@@ -110,6 +110,13 @@ Notes:
 - If `DATABASE_URL` is set, SQLite is ignored.
 - For local development without Postgres, leave `DATABASE_URL` empty and use SQLite.
 
+## 🔐 Security Hygiene
+
+- Never commit real credentials (GitHub tokens, OpenAI keys, database URLs) into tracked files.
+- Keep secrets only in environment variables (`.env` locally, Render environment settings in production).
+- `.env` and generated eval outputs are intentionally git-ignored; keep using `.env.example` for placeholders only.
+- If a credential is ever exposed, rotate it immediately and invalidate the old value.
+
 ---
 # 📅 Product Roadmap
 

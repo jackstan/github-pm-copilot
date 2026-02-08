@@ -8,13 +8,25 @@ __pycache__/
 
 # Virtual env
 .env
+.env.*
+!.env.example
 .venv
 venv/
 env/
+.envrc
 
 # Data
 /data/*
 !/data/.gitkeep
+
+# Generated eval outputs
+evals/weekly_summary_eval_results.json
+evals/*_eval_results.json
+
+# Local secret/key material
+*.pem
+*.key
+*.p12
 
 # VS Code
 .vscode/
