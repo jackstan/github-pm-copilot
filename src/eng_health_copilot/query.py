@@ -5,6 +5,12 @@ import pandas as pd
 from .db import get_db, read_sql_query
 
 
+def _order_ts_expr(conn, column: str) -> str:
+    if conn.backend == "postgres":
+        return f"NULLIF({column}, '')::timestamptz"
+    return f"datetime({column})"
+
+
 def get_last_weekly_metrics(owner: str, repo: str) -> Optional[Dict[str, Any]]:
     conn = get_db()
     df = read_sql_query(
@@ -75,6 +81,12 @@ def get_llm_context(
     """
     conn = get_db()
     try:
+        created_order_expr = _order_ts_expr(conn, "created_at")
+        submitted_order_expr = _order_ts_expr(conn, "submitted_at")
+        ci_order_expr = _order_ts_expr(conn, "last_updated")
+        published_order_expr = _order_ts_expr(conn, "published_at")
+        release_created_order_expr = _order_ts_expr(conn, "created_at")
+
         # ---------- Weekly metrics history ----------
         hist_df = read_sql_query(
             """
@@ -98,7 +110,7 @@ def get_llm_context(
 
         # ---------- Recent pull requests ----------
         pr_df = read_sql_query(
-            """
+            f"""
             SELECT
                 number,
                 title,
@@ -114,7 +126,7 @@ def get_llm_context(
             FROM pull_requests
             WHERE repo_owner = ?
               AND repo_name = ?
-            ORDER BY datetime(created_at) DESC
+            ORDER BY {created_order_expr} DESC
             LIMIT ?
             """,
             conn,
@@ -124,7 +136,7 @@ def get_llm_context(
 
         # ---------- Recent PR reviews ----------
         reviews_df = read_sql_query(
-            """
+            f"""
             SELECT
                 pr_number,
                 user_login,
@@ -133,7 +145,7 @@ def get_llm_context(
             FROM pr_reviews
             WHERE repo_owner = ?
               AND repo_name = ?
-            ORDER BY datetime(submitted_at) DESC
+            ORDER BY {submitted_order_expr} DESC
             LIMIT ?
             """,
             conn,
@@ -143,7 +155,7 @@ def get_llm_context(
 
         # ---------- Recent CI statuses ----------
         ci_df = read_sql_query(
-            """
+            f"""
             SELECT
                 sha,
                 pr_number,
@@ -152,7 +164,7 @@ def get_llm_context(
             FROM ci_statuses
             WHERE repo_owner = ?
               AND repo_name = ?
-            ORDER BY datetime(last_updated) DESC
+            ORDER BY {ci_order_expr} DESC
             LIMIT ?
             """,
             conn,
@@ -162,7 +174,7 @@ def get_llm_context(
 
         # ---------- Recent releases ----------
         rel_df = read_sql_query(
-            """
+            f"""
             SELECT
                 tag_name,
                 name,
@@ -172,7 +184,7 @@ def get_llm_context(
             WHERE repo_owner = ?
               AND repo_name = ?
             ORDER BY
-                COALESCE(datetime(published_at), datetime(created_at)) DESC
+                COALESCE({published_order_expr}, {release_created_order_expr}) DESC
             LIMIT ?
             """,
             conn,
