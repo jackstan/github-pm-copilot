@@ -123,6 +123,45 @@ Notes:
 - If production runs are in SQLite, set `ENG_HEALTH_DB_PATH` when non-default.
 - Runner writes aggregate run rows to `eval_runs` and case rows to `eval_case_results` unless `--no-persist-results` is set.
 
+## Render cron setup (recommended)
+
+Create a Render Cron Job in the same repo/environment as the web service.
+
+Suggested schedule:
+
+- Nightly production-only grading: `0 9 * * *` (09:00 UTC daily)
+
+Cron command:
+
+```bash
+PYTHONPATH=src python evals/run_weekly_summary_eval.py \
+  --production-only \
+  --production-limit 20 \
+  --production-since-hours 168 \
+  --grader-only \
+  --run-name nightly-production-eval
+```
+
+Optional weekly broader run (static + production):
+
+- Weekly comprehensive run: `0 10 * * 1` (10:00 UTC Mondays)
+
+```bash
+PYTHONPATH=src python evals/run_weekly_summary_eval.py \
+  --dataset evals/weekly_summary_dataset_v2.jsonl \
+  --include-production \
+  --production-limit 20 \
+  --production-since-hours 168 \
+  --run-name weekly-full-eval
+```
+
+Verify persistence after a cron run:
+
+```sql
+SELECT COUNT(*) FROM eval_runs;
+SELECT COUNT(*) FROM eval_case_results;
+```
+
 ## Soft gate + baseline workflow
 
 Run with baseline comparison and soft gating:
